@@ -18,9 +18,10 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Users, Globe, Lock, Timer } from "lucide-react";
+import { useOrganization, useOrganizationList, OrganizationSwitcher } from "@clerk/tanstack-react-start";
+import { Users, Globe, Lock, Timer, Building2 } from "lucide-react";
 
 const formatTimerDuration = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -41,9 +42,33 @@ export function CreateRoomForm() {
   const [pointScalePreset, setPointScalePreset] = useState("fibonacci");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [timerDuration, setTimerDuration] = useState(180);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const createRoom = useMutation(api.rooms.create);
   const navigate = useNavigate();
+  const { organization } = useOrganization();
+  const { userMemberships, isLoaded: orgListLoaded } = useOrganizationList();
+
+  // Sync selected organization with current active organization from switcher
+  useEffect(() => {
+    if (organization) {
+      setSelectedOrganizationId(organization.id);
+    } else {
+      // If no organization is active, default to personal room
+      setSelectedOrganizationId(null);
+    }
+  }, [organization]);
+
+  const handlePresetChange = (newPreset: string | null) => {
+    if (newPreset !== null) {
+      setPointScalePreset(newPreset);
+    }
+  };
+
+  const handleOrganizationChange = (value: string | null) => {
+    const orgId = value === "personal" || value === null ? null : value;
+    setSelectedOrganizationId(orgId);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +81,7 @@ export function CreateRoomForm() {
         pointScalePreset,
         visibility,
         timerDurationSeconds: timerDuration,
+        organizationId: selectedOrganizationId || undefined,
       });
       navigate({ to: "/room/$roomId", params: { roomId } });
     } catch (error) {
@@ -94,7 +120,7 @@ export function CreateRoomForm() {
             <Label>Point Scale</Label>
             <Select
               value={pointScalePreset}
-              onValueChange={setPointScalePreset}
+              onValueChange={handlePresetChange}
               disabled={isCreating}
             >
               <SelectTrigger className="w-full">
@@ -144,6 +170,52 @@ export function CreateRoomForm() {
             </div>
           </div>
 
+          {/* Organization Selection */}
+          <div className="space-y-2">
+            <Label>Organization</Label>
+            <div className="space-y-2">
+              <OrganizationSwitcher
+                appearance={{
+                  elements: {
+                    organizationSwitcherTrigger: "w-full justify-between px-3 py-2",
+                  },
+                }}
+              />
+              {orgListLoaded && userMemberships && userMemberships.data && userMemberships.data.length > 0 && (
+                <Select
+                  value={selectedOrganizationId || "personal"}
+                  onValueChange={handleOrganizationChange}
+                  disabled={isCreating}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        Personal Room
+                      </div>
+                    </SelectItem>
+                    {userMemberships.data.map((membership: { organization: { id: string; name: string } }) => (
+                      <SelectItem key={membership.organization.id} value={membership.organization.id}>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4" />
+                          {membership.organization.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {selectedOrganizationId
+                ? "Room will be scoped to this organization"
+                : "Personal room (not scoped to any organization)"}
+            </p>
+          </div>
+
           {/* Room Visibility */}
           <div className="space-y-2">
             <Label>Room Visibility</Label>
@@ -172,9 +244,13 @@ export function CreateRoomForm() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              {visibility === "public"
-                ? "Anyone with the link can view (sign in required to vote)"
-                : "Only signed-in users can access this room"}
+              {selectedOrganizationId
+                ? visibility === "public"
+                  ? "Anyone with the link can view (sign in required to vote)"
+                  : "Only members of this organization can access this room"
+                : visibility === "public"
+                  ? "Anyone with the link can view (sign in required to vote)"
+                  : "Only signed-in users can access this room"}
             </p>
           </div>
 

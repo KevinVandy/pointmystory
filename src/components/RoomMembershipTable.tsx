@@ -17,8 +17,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LogIn, LogOut, Calendar } from "lucide-react";
-import { useUser } from "@clerk/tanstack-react-start";
+import { LogIn, LogOut, Calendar, Building2, Users } from "lucide-react";
+import { useUser, useOrganizationList } from "@clerk/tanstack-react-start";
 import { toast } from "sonner";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
@@ -31,6 +31,7 @@ import {
 
 export function RoomMembershipTable() {
   const { user, isLoaded } = useUser();
+  const { userMemberships, isLoaded: orgListLoaded } = useOrganizationList();
   const navigate = useNavigate();
 
   // Get user's rooms
@@ -40,6 +41,14 @@ export function RoomMembershipTable() {
   );
 
   const leaveRoom = useMutation(api.participants.leave);
+
+  // Create a map of organization IDs to names
+  const orgMap = new Map<string, string>();
+  if (orgListLoaded && userMemberships && userMemberships.data) {
+    userMemberships.data.forEach((membership: { organization: { id: string; name: string } }) => {
+      orgMap.set(membership.organization.id, membership.organization.name);
+    });
+  }
 
   // Sort rooms: open rooms first, then closed rooms (both sorted by joinedAt descending)
   const sortedRooms = userRooms
@@ -105,6 +114,7 @@ export function RoomMembershipTable() {
           <TableHeader>
             <TableRow>
               <TableHead>Room Name</TableHead>
+              <TableHead>Organization</TableHead>
               <TableHead>Participants</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Joined</TableHead>
@@ -126,9 +136,26 @@ export function RoomMembershipTable() {
                 roomParticipants.length - maxAvatars,
               );
 
+              const organizationName = room.organizationId
+                ? orgMap.get(room.organizationId) || "Unknown Org"
+                : null;
+
               return (
                 <TableRow key={room._id}>
                   <TableCell className="font-medium">{room.name}</TableCell>
+                  <TableCell>
+                    {organizationName ? (
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-muted-foreground">{organizationName}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-muted-foreground">Personal</span>
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {roomParticipants.length > 0 ? (
                       <AvatarGroup>

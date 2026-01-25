@@ -365,6 +365,7 @@ function RoomPage() {
                     isDemoRoom ? (demoSessionId ?? undefined) : undefined
                   }
                   isDemoRoom={isDemoRoom}
+                  organizationId={room.organizationId ?? undefined}
                 />
               </div>
             )}
@@ -418,6 +419,7 @@ function RoomPage() {
                   isDemoRoom ? (demoSessionId ?? undefined) : undefined
                 }
                 isDemoRoom={isDemoRoom}
+                organizationId={room.organizationId ?? undefined}
               />
             </div>
           )}

@@ -4,6 +4,7 @@ import {
   SignedOut,
   SignInButton,
   UserButton,
+  OrganizationSwitcher,
 } from "@clerk/tanstack-react-start";
 import { Target } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
@@ -24,6 +25,13 @@ export default function Header() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <SignedIn>
+            <OrganizationSwitcher
+              appearance={{
+                elements: {
+                  organizationSwitcherTrigger: "px-3 py-1.5",
+                },
+              }}
+            />
             <UserButton
               appearance={{
                 elements: {

@@ -24,7 +24,11 @@ export default defineSchema({
     isDemo: v.optional(v.boolean()), // Whether this is a demo room
     autoCloseAt: v.optional(v.number()), // Timestamp when demo room should auto-close
     demoSessionId: v.optional(v.string()), // Unique session identifier for demo room admin
-  }).index("by_host", ["hostId"]),
+    // Organization field
+    organizationId: v.optional(v.string()), // Clerk organization ID (null = personal room)
+  })
+    .index("by_host", ["hostId"])
+    .index("by_organization", ["organizationId"]),
 
   // Rounds table - tracks each voting round within a room
   rounds: defineTable({

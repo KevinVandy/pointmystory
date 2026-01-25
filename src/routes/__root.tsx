@@ -31,8 +31,11 @@ const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
 
     // Only try to get token if user is authenticated
     let token = null;
+    let organizationId = null;
     if (authState.userId) {
       try {
+        // Get organization ID from auth state if available
+        organizationId = authState.orgId || null;
         token = await authState.getToken({ template: "convex" });
       } catch (e) {
         // Token template might not exist yet - that's ok
@@ -42,6 +45,7 @@ const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
 
     return {
       userId: authState.userId,
+      organizationId,
       token,
     };
   } catch (e) {
@@ -49,6 +53,7 @@ const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
     console.warn("Auth check failed:", e);
     return {
       userId: null,
+      organizationId: null,
       token: null,
     };
   }
@@ -82,7 +87,7 @@ export const Route = createRootRouteWithContext<{
 
   beforeLoad: async (ctx) => {
     const authResult = await fetchClerkAuth();
-    const { userId, token } = authResult;
+    const { userId, organizationId, token } = authResult;
 
     // During SSR only (the only time serverHttpClient exists),
     // set the Clerk auth token to make HTTP queries with.
@@ -92,6 +97,7 @@ export const Route = createRootRouteWithContext<{
 
     return {
       userId,
+      organizationId,
       token,
     };
   },

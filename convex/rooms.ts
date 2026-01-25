@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { requireAuth, requireRoomAdmin, canViewRoomWithoutAuth } from "./permissions";
+import { requireAuth, requireRoomAdmin, canViewRoom } from "./permissions";
 import { getPointScaleForPreset, DEFAULT_PRESET, getEffectivePointScale } from "./pointScales";
 import { calculateVoteStats, roundToNearestPointScale } from "./rounds";
 import { internal } from "./_generated/api";
@@ -16,9 +16,15 @@ export const create = mutation({
     pointScalePreset: v.optional(v.string()),
     pointScale: v.optional(v.array(v.string())),
     timerDurationSeconds: v.optional(v.number()),
+    organizationId: v.optional(v.string()), // Optional organization ID
   },
   handler: async (ctx, args) => {
     const identity = await requireAuth(ctx);
+
+    // Use provided organizationId, or undefined for personal rooms
+    // If organizationId is explicitly null/undefined from args, that means personal room
+    // The organizationId should be passed from the client based on user's selection
+    const organizationId = args.organizationId || undefined;
 
     // Determine the point scale to use
     const preset = args.pointScalePreset ?? DEFAULT_PRESET;
@@ -39,6 +45,7 @@ export const create = mutation({
       pointScale: pointScale,
       timerDurationSeconds: args.timerDurationSeconds ?? DEFAULT_TIMER_DURATION,
       status: "open",
+      organizationId: organizationId,
     });
 
     // Create the initial round for this room
@@ -71,6 +78,7 @@ export const create = mutation({
 // Get a room by ID
 // Returns status to distinguish between "not found" and "access denied"
 // Public rooms can be viewed by anyone, private rooms require authentication
+// Private organization rooms require organization membership
 export const get = query({
   args: {
     roomId: v.id("rooms"),
@@ -81,14 +89,9 @@ export const get = query({
       return { status: "not_found" as const, room: null };
     }
 
-    // Public rooms can be viewed by anyone
-    if (canViewRoomWithoutAuth(room)) {
-      return { status: "ok" as const, room };
-    }
-
-    // Private rooms require authentication
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    // Check if user can view the room (handles public, private personal, and private org rooms)
+    const canView = await canViewRoom(ctx, room);
+    if (!canView) {
       return { status: "access_denied" as const, room: null };
     }
 

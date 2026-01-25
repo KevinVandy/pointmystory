@@ -33,11 +33,58 @@ export function getEffectiveParticipantType(
 /**
  * Check if a room can be viewed without authentication.
  * Only public rooms can be viewed without auth.
+ * Public organization rooms can be viewed by anyone.
  */
 export function canViewRoomWithoutAuth(
-  room: { visibility?: "public" | "private" | null }
+  room: { visibility?: "public" | "private" | null; organizationId?: string | null }
 ): boolean {
+  // Public rooms can be viewed by anyone, regardless of organization
   return getEffectiveVisibility(room) === "public";
+}
+
+/**
+ * Check if the current user is a member of the room's organization.
+ * Returns false if room has no organization or user is not authenticated.
+ */
+export async function isOrganizationMember(
+  ctx: Context,
+  room: { organizationId?: string | null }
+): Promise<boolean> {
+  // If room has no organization, return false (not an org room)
+  if (!room.organizationId) {
+    return false;
+  }
+
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    return false;
+  }
+
+  // Check if user's organization matches room's organization
+  // The organization ID comes from the JWT token claims
+  // The JWT template must be configured in Clerk Dashboard to include org_id claim
+  // Go to Clerk Dashboard → JWT Templates → convex template → Map additional claims
+  // Add: org_id = {{org.id}}
+  const identityAny = identity as any;
+  
+  // Try multiple possible field names for organization ID
+  const userOrgId = identityAny.org_id || identityAny.orgId || identityAny.organization_id || identityAny.organizationId;
+  
+  // Log for debugging - check Convex dashboard logs
+  console.log("[Organization Check]", {
+    roomOrgId: room.organizationId,
+    userOrgId,
+    hasOrgId: !!userOrgId,
+    identityKeys: Object.keys(identityAny).filter(k => k.toLowerCase().includes('org')),
+    allIdentityKeys: Object.keys(identityAny),
+  });
+  
+  if (!userOrgId) {
+    console.warn("[Organization Check] No organization ID found in token. Make sure JWT template includes org_id claim.");
+    return false;
+  }
+  
+  return userOrgId === room.organizationId;
 }
 
 /**
@@ -144,11 +191,13 @@ export async function requireAuth(ctx: Context) {
 
 /**
  * Check if the current user can view a room.
- * Public rooms can be viewed by anyone, private rooms require authentication.
+ * - Public rooms (personal or org): Anyone can view
+ * - Private personal rooms: Any authenticated user can view
+ * - Private organization rooms: Only organization members can view
  */
 export async function canViewRoom(
   ctx: Context,
-  room: { visibility?: "public" | "private" | null }
+  room: { visibility?: "public" | "private" | null; organizationId?: string | null }
 ): Promise<boolean> {
   // Public rooms can be viewed by anyone
   if (canViewRoomWithoutAuth(room)) {
@@ -157,7 +206,17 @@ export async function canViewRoom(
 
   // Private rooms require authentication
   const identity = await ctx.auth.getUserIdentity();
-  return identity !== null;
+  if (!identity) {
+    return false;
+  }
+
+  // If it's a private organization room, check membership
+  if (room.organizationId) {
+    return await isOrganizationMember(ctx, room);
+  }
+
+  // Private personal room - any authenticated user can view
+  return true;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as React from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -16,7 +16,9 @@ import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { Checkbox } from "./ui/checkbox";
 import { Slider } from "./ui/slider";
-import { Settings, Globe, Lock, Copy, Timer } from "lucide-react";
+import { Settings, Globe, Lock, Copy, Timer, Building2 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { useOrganization, useOrganizationList } from "@clerk/tanstack-react-start";
 import { toast } from "sonner";
 import { Separator } from "./ui/separator";
 import {
@@ -64,6 +66,7 @@ interface RoomSettingsProps {
   isAdmin: boolean;
   demoSessionId?: string;
   isDemoRoom?: boolean;
+  organizationId?: string | null;
 }
 
 export function RoomSettings({
@@ -76,8 +79,44 @@ export function RoomSettings({
   isAdmin,
   demoSessionId,
   isDemoRoom = false,
+  organizationId,
 }: RoomSettingsProps) {
   const updateSettings = useMutation(api.rooms.updateSettings);
+  const { organization } = useOrganization();
+  const { userMemberships, isLoaded: orgListLoaded } = useOrganizationList();
+  const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [organizationImageUrl, setOrganizationImageUrl] = useState<string | null>(null);
+
+  // Look up organization name and image when data is available
+  useEffect(() => {
+    if (!organizationId) {
+      setOrganizationName(null);
+      setOrganizationImageUrl(null);
+      return;
+    }
+
+    // First check if it matches the current active organization
+    if (organization?.id === organizationId) {
+      setOrganizationName(organization.name);
+      setOrganizationImageUrl(organization.imageUrl || null);
+      return;
+    }
+
+    // Otherwise, look it up from the user's organization memberships
+    if (orgListLoaded && userMemberships?.data) {
+      const membership = userMemberships.data.find(
+        (m: { organization: { id: string; name: string; imageUrl?: string } }) => 
+          m.organization.id === organizationId
+      );
+      if (membership) {
+        setOrganizationName(membership.organization.name || null);
+        setOrganizationImageUrl(membership.organization.imageUrl || null);
+      } else {
+        setOrganizationName(null);
+        setOrganizationImageUrl(null);
+      }
+    }
+  }, [organizationId, organization?.id, organization?.name, organization?.imageUrl, orgListLoaded, userMemberships?.data]);
 
   const [visibility, setVisibility] = useState(currentVisibility);
   const [preset, setPreset] = useState(currentPreset || "fibonacci");
@@ -413,9 +452,13 @@ export function RoomSettings({
               <p className="text-xs text-muted-foreground">
                 {isDemoRoom
                   ? "Demo rooms are always public"
-                  : visibility === "public"
-                    ? "Anyone with the link can view (sign in required to vote)"
-                    : "Only signed-in users can access this room"}
+                  : organizationId
+                    ? visibility === "public"
+                      ? "Anyone with the link can view (sign in required to vote)"
+                      : "Only members of this organization can access this room"
+                    : visibility === "public"
+                      ? "Anyone with the link can view (sign in required to vote)"
+                      : "Only signed-in users can access this room"}
               </p>
             </div>
 
@@ -463,6 +506,33 @@ export function RoomSettings({
                 </Button>
               </div>
             </div>
+
+            {/* Organization Indicator - at the bottom */}
+            {organizationId && (
+              <>
+                <Separator />
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+                  {organizationImageUrl ? (
+                    <Avatar size="sm">
+                      <AvatarImage src={organizationImageUrl} alt={organizationName || "Organization"} />
+                      <AvatarFallback>
+                        <Building2 className="size-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <Building2 className="size-4 text-muted-foreground" />
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {organizationName || `Organization (${organizationId})`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      This room belongs to an organization
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </AccordionContent>
       </AccordionItem>
