@@ -4,7 +4,7 @@ export const POINT_SCALE_PRESETS = {
   fibonacci: ["1", "2", "3", "5", "8", "13", "21", "?"],
   tshirt: ["XS", "S", "M", "L", "XL", "?"],
   powers: ["1", "2", "4", "8", "16", "32", "?"],
-  linear: ["0.5", "1", "2", "4", "8", "12", "16", "24", "?"],
+  linear: ["0.5", "1", "2", "4", "6", "8", "12", "16", "24", "?"],
 } as const;
 
 export type PointScalePreset = keyof typeof POINT_SCALE_PRESETS | "custom";
@@ -13,7 +13,7 @@ export const PRESET_LABELS: Record<PointScalePreset, string> = {
   fibonacci: "Fibonacci (1, 2, 3, 5, 8, 13, 21, ?)",
   tshirt: "T-Shirt Sizes (XS, S, M, L, XL, ?)",
   powers: "Powers of 2 (1, 2, 4, 8, 16, 32, ?)",
-  linear: "Linear (0.5, 1, 2, 4, 8, 12, 16, 24, ?)",
+  linear: "Linear (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)",
   custom: "Custom",
 };
 

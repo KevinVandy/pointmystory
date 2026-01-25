@@ -25,7 +25,7 @@ const PRESET_OPTIONS = [
   { value: "fibonacci", label: "Fibonacci (1, 2, 3, 5, 8, 13, 21, ?)" },
   { value: "tshirt", label: "T-Shirt Sizes (XS, S, M, L, XL, ?)" },
   { value: "powers", label: "Powers of 2 (1, 2, 4, 8, 16, 32, ?)" },
-  { value: "linear", label: "Linear (0.5, 1, 2, 4, 8, 12, 16, 24, ?)" },
+  { value: "linear", label: "Linear (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)" },
 ];
 
 const TIMER_OPTIONS = [
