@@ -21,6 +21,13 @@ import { LogIn, LogOut, Calendar } from "lucide-react";
 import { useUser } from "@clerk/tanstack-react-start";
 import { toast } from "sonner";
 import type { Id } from "../../convex/_generated/dataModel";
+import {
+  Avatar,
+  AvatarGroup,
+  AvatarImage,
+  AvatarFallback,
+  AvatarGroupCount,
+} from "@/components/ui/avatar";
 
 export function RoomMembershipTable() {
   const { user, isLoaded } = useUser();
@@ -98,6 +105,7 @@ export function RoomMembershipTable() {
           <TableHeader>
             <TableRow>
               <TableHead>Room Name</TableHead>
+              <TableHead>Participants</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -110,9 +118,40 @@ export function RoomMembershipTable() {
               const roomStatus = room.status ?? "open";
               const isOpen = roomStatus === "open";
 
+              const roomParticipants = room.participants || [];
+              const maxAvatars = 5;
+              const visibleParticipants = roomParticipants.slice(0, maxAvatars);
+              const remainingCount = Math.max(0, roomParticipants.length - maxAvatars);
+
               return (
                 <TableRow key={room._id}>
                   <TableCell className="font-medium">{room.name}</TableCell>
+                  <TableCell>
+                    {roomParticipants.length > 0 ? (
+                      <AvatarGroup>
+                        {visibleParticipants.map((participant, index) => (
+                          <Avatar key={index} size="sm">
+                            {participant.avatarUrl ? (
+                              <AvatarImage
+                                src={participant.avatarUrl}
+                                alt={participant.name || "Participant"}
+                              />
+                            ) : null}
+                            <AvatarFallback>
+                              {participant.name
+                                ? participant.name.charAt(0).toUpperCase()
+                                : "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                        {remainingCount > 0 && (
+                          <AvatarGroupCount>+{remainingCount}</AvatarGroupCount>
+                        )}
+                      </AvatarGroup>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">No participants</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {isOpen ? (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">

@@ -29,7 +29,6 @@ export const create = mutation({
     // Update room to point to this new round and reset state
     await ctx.db.patch(args.roomId, {
       currentRoundId: roundId,
-      isRevealed: false,
       currentStory: args.name || args.ticketNumber || undefined,
       timerStartedAt: undefined,
       timerEndsAt: undefined,
@@ -173,6 +172,35 @@ export const getCurrentRound = query({
   },
 });
 
+// Mapping for t-shirt sizes to numeric values
+const TSHIRT_SIZE_MAP: Record<string, number> = {
+  XS: 1,
+  S: 2,
+  M: 3,
+  L: 5,
+  XL: 8,
+};
+
+/**
+ * Convert a vote value to a number for calculations.
+ * Handles numeric strings, t-shirt sizes, and "?" (unsure).
+ */
+function voteValueToNumber(value: string): number | null {
+  if (!value || value === "?") {
+    return null;
+  }
+  
+  // Check if it's a t-shirt size
+  const upperValue = value.toUpperCase();
+  if (TSHIRT_SIZE_MAP[upperValue] !== undefined) {
+    return TSHIRT_SIZE_MAP[upperValue];
+  }
+  
+  // Try parsing as a number
+  const num = parseFloat(value);
+  return isNaN(num) ? null : num;
+}
+
 // Helper function to calculate vote statistics
 export function calculateVoteStats(votes: { value: string }[]): {
   averageScore: number | undefined;
@@ -180,9 +208,8 @@ export function calculateVoteStats(votes: { value: string }[]): {
   unsureCount: number;
 } {
   const numericVotes = votes
-    .filter((v) => v.value && v.value !== "?")
-    .map((v) => parseFloat(v.value))
-    .filter((v) => !isNaN(v));
+    .map((v) => voteValueToNumber(v.value))
+    .filter((v): v is number => v !== null);
 
   const unsureCount = votes.filter((v) => v.value === "?").length;
 

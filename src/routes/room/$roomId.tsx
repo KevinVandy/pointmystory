@@ -48,7 +48,6 @@ function RoomPage() {
   // Convex mutations
   const joinRoom = useMutation(api.participants.join);
   const castVote = useMutation(api.votes.cast);
-  const updateStory = useMutation(api.rooms.updateStory);
   const revealVotes = useMutation(api.rooms.reveal);
   const startTimerMutation = useMutation(api.rooms.startTimer);
   const stopTimerMutation = useMutation(api.rooms.stopTimer);
@@ -165,13 +164,6 @@ function RoomPage() {
     });
   };
 
-  const handleUpdateStory = (story: string) => {
-    updateStory({
-      roomId: roomId as Id<"rooms">,
-      story,
-    });
-  };
-
   const handleReveal = () => {
     revealVotes({ roomId: roomId as Id<"rooms"> });
   };
@@ -221,7 +213,6 @@ function RoomPage() {
             isRevealed={currentRound?.isRevealed ?? false}
             isHost={isAdmin}
             hasVotes={hasVotes}
-            onUpdateStory={handleUpdateStory}
             onReveal={handleReveal}
             timerEndsAt={room.timerEndsAt}
             timerStartedAt={room.timerStartedAt}
@@ -313,6 +304,7 @@ function RoomPage() {
               roomId={roomId as Id<"rooms">}
               isAdmin={isAdmin}
               currentRoundId={room.currentRoundId}
+              pointScalePreset={room.pointScalePreset}
             />
 
             {/* Admin Settings Panel - in left column on desktop */}
@@ -344,6 +336,7 @@ function RoomPage() {
                   value: v.value,
                   hasVoted: v.hasVoted,
                 }))}
+                pointScalePreset={room.pointScalePreset}
               />
             </CardContent>
           </Card>

@@ -48,12 +48,53 @@ interface RoundHistoryTableProps {
   roomId: Id<"rooms">;
   isAdmin: boolean;
   currentRoundId?: Id<"rounds">;
+  pointScalePreset?: string;
+}
+
+// Mapping for t-shirt sizes to numeric values
+const TSHIRT_SIZE_MAP: Record<string, number> = {
+  XS: 1,
+  S: 2,
+  M: 3,
+  L: 5,
+  XL: 8,
+};
+
+// Reverse mapping: number to t-shirt size (for display)
+const NUMBER_TO_TSHIRT: Record<number, string> = {
+  1: "XS",
+  2: "S",
+  3: "M",
+  5: "L",
+  8: "XL",
+};
+
+/**
+ * Convert a number back to t-shirt size (finds closest match).
+ * Returns the number as string if no t-shirt size matches.
+ */
+function numberToTShirtSize(num: number): string {
+  // Find closest t-shirt size
+  const tshirtValues = Object.values(TSHIRT_SIZE_MAP).sort((a, b) => a - b);
+  let closest = tshirtValues[0];
+  let minDiff = Math.abs(num - closest);
+  
+  for (const val of tshirtValues) {
+    const diff = Math.abs(num - val);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = val;
+    }
+  }
+  
+  return NUMBER_TO_TSHIRT[closest] || num.toFixed(1);
 }
 
 export function RoundHistoryTable({
   roomId,
   isAdmin,
   currentRoundId,
+  pointScalePreset,
 }: RoundHistoryTableProps) {
   const rounds = useQuery(api.rounds.listByRoom, { roomId });
 
@@ -119,20 +160,32 @@ export function RoundHistoryTable({
       {
         accessorKey: "averageScore",
         header: "Avg",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">
-            {row.original.averageScore?.toFixed(1) ?? "-"}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const isTShirtScale = pointScalePreset === "tshirt";
+          const value = row.original.averageScore;
+          if (value === undefined || value === null) {
+            return <span className="text-muted-foreground">-</span>;
+          }
+          const displayValue = isTShirtScale
+            ? numberToTShirtSize(value)
+            : value.toFixed(1);
+          return <span className="text-muted-foreground">{displayValue}</span>;
+        },
       },
       {
         accessorKey: "medianScore",
         header: "Med",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">
-            {row.original.medianScore ?? "-"}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const isTShirtScale = pointScalePreset === "tshirt";
+          const value = row.original.medianScore;
+          if (value === undefined || value === null) {
+            return <span className="text-muted-foreground">-</span>;
+          }
+          const displayValue = isTShirtScale
+            ? numberToTShirtSize(value)
+            : value.toString();
+          return <span className="text-muted-foreground">{displayValue}</span>;
+        },
       },
       {
         accessorKey: "unsureCount",
@@ -156,7 +209,7 @@ export function RoundHistoryTable({
         },
       },
     ],
-    [isAdmin],
+    [isAdmin, pointScalePreset],
   );
 
   const table = useReactTable({

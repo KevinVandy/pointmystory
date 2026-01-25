@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Eye, Copy, Timer, TimerOff, LogOut, Lock, Unlock } from "lucide-react";
-import { useState } from "react";
+import { Eye, Share2, Timer, TimerOff, LogOut, Lock, Unlock, FileText } from "lucide-react";
 import { VotingTimer } from "./VotingTimer";
 import { NewRoundDialog } from "./NewRoundDialog";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -30,7 +28,6 @@ interface RoomControlsProps {
   isRevealed: boolean;
   isHost: boolean;
   hasVotes: boolean;
-  onUpdateStory: (story: string) => void;
   onReveal: () => void;
   timerEndsAt?: number | null;
   timerStartedAt?: number | null;
@@ -49,7 +46,6 @@ export function RoomControls({
   isRevealed,
   isHost,
   hasVotes,
-  onUpdateStory,
   onReveal,
   timerEndsAt,
   timerStartedAt,
@@ -58,7 +54,6 @@ export function RoomControls({
   roomStatus = "open",
   isAdmin = false,
 }: RoomControlsProps) {
-  const [storyInput, setStoryInput] = useState(currentStory || "");
   const navigate = useNavigate();
   const leaveRoom = useMutation(api.participants.leave);
   const closeRoom = useMutation(api.rooms.closeRoom);
@@ -66,13 +61,6 @@ export function RoomControls({
 
   // Display the current round info
   const displayStory = currentStory || currentRoundName || currentTicketNumber;
-
-  const handleStorySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (storyInput.trim()) {
-      onUpdateStory(storyInput.trim());
-    }
-  };
 
   const copyRoomLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -143,8 +131,8 @@ export function RoomControls({
             onClick={copyRoomLink}
             className="gap-2"
           >
-            <Copy className="w-4 h-4" />
-            Copy Link
+            <Share2 className="w-4 h-4" />
+            Share Link
           </Button>
           {!isAdmin && (
             <Button
@@ -171,12 +159,14 @@ export function RoomControls({
                 </Button>
               ) : (
                 <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Lock className="w-4 h-4" />
-                      Close Room
-                    </Button>
-                  </AlertDialogTrigger>
+                  <AlertDialogTrigger
+                    render={
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Lock className="w-4 h-4" />
+                        Close Room
+                      </Button>
+                    }
+                  />
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Close Room</AlertDialogTitle>
@@ -206,60 +196,59 @@ export function RoomControls({
 
       {/* Host Controls */}
       {isHost && !isClosed && (
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Story Input */}
-          <form onSubmit={handleStorySubmit} className="flex-1 flex gap-2">
-            <Input
-              value={storyInput}
-              onChange={(e) => setStoryInput(e.target.value)}
-              placeholder="Enter story/ticket to vote on..."
-              className="flex-1"
+        <div className="flex gap-2 flex-wrap">
+          {/* Set Story Button - only show before votes are revealed */}
+          {!isRevealed && (
+            <NewRoundDialog
+              roomId={roomId}
+              mode="setStory"
+              initialName={currentRoundName || currentStory}
+              initialTicketNumber={currentTicketNumber}
+              trigger={
+                <Button variant="outline" className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  Set Story
+                </Button>
+              }
+              onStoryUpdated={() => {
+                // Story will be updated via the mutation, no need for callback
+              }}
             />
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={!storyInput.trim()}
-            >
-              Set Story
+          )}
+
+          {/* Timer Controls */}
+          {!isRevealed && (
+            <>
+              {isTimerRunning ? (
+                <Button
+                  variant="outline"
+                  onClick={onStopTimer}
+                  className="gap-2"
+                >
+                  <TimerOff className="w-4 h-4" />
+                  Stop Timer
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={onStartTimer}
+                  className="gap-2"
+                >
+                  <Timer className="w-4 h-4" />
+                  Start Timer
+                </Button>
+              )}
+            </>
+          )}
+
+          {!isRevealed ? (
+            <Button onClick={onReveal} disabled={!hasVotes} className="gap-2">
+              <Eye className="w-4 h-4" />
+              Reveal Votes
             </Button>
-          </form>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 flex-wrap">
-            {/* Timer Controls */}
-            {!isRevealed && (
-              <>
-                {isTimerRunning ? (
-                  <Button
-                    variant="outline"
-                    onClick={onStopTimer}
-                    className="gap-2"
-                  >
-                    <TimerOff className="w-4 h-4" />
-                    Stop Timer
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    onClick={onStartTimer}
-                    className="gap-2"
-                  >
-                    <Timer className="w-4 h-4" />
-                    Start Timer
-                  </Button>
-                )}
-              </>
-            )}
-
-            {!isRevealed ? (
-              <Button onClick={onReveal} disabled={!hasVotes} className="gap-2">
-                <Eye className="w-4 h-4" />
-                Reveal Votes
-              </Button>
-            ) : (
-              <NewRoundDialog roomId={roomId} />
-            )}
-          </div>
+          ) : (
+            <NewRoundDialog roomId={roomId} />
+          )}
         </div>
       )}
 

@@ -13,12 +13,17 @@ import {
 } from "./ui/select";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Switch } from "./ui/switch";
 import { Slider } from "./ui/slider";
 import { Settings, Globe, Lock, Copy, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "./ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "./ui/accordion";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -222,14 +227,16 @@ export function RoomSettings({
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Settings className="size-4" />
-          Room Settings
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Accordion className="w-full">
+      <AccordionItem value="room-settings">
+        <AccordionTrigger>
+          <div className="flex items-center gap-2">
+            <Settings className="size-4" />
+            Room Settings
+          </div>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="space-y-4">
         {/* Timer Duration */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -394,7 +401,9 @@ export function RoomSettings({
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }

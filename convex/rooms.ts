@@ -153,6 +153,7 @@ export const updateStory = mutation({
   args: {
     roomId: v.id("rooms"),
     story: v.string(),
+    ticketNumber: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireRoomAdmin(ctx, args.roomId);
@@ -162,9 +163,20 @@ export const updateStory = mutation({
       throw new Error("Room not found");
     }
 
+    // Update room's currentStory
     await ctx.db.patch(args.roomId, {
       currentStory: args.story,
     });
+
+    // If ticketNumber is provided and there's a current round, update the round
+    if (args.ticketNumber !== undefined && room.currentRoundId) {
+      const currentRound = await ctx.db.get(room.currentRoundId);
+      if (currentRound) {
+        await ctx.db.patch(room.currentRoundId, {
+          ticketNumber: args.ticketNumber || undefined,
+        });
+      }
+    }
   },
 });
 
@@ -397,10 +409,21 @@ export const listByUser = query({
         if (!room) {
           return null;
         }
+        
+        // Get all participants for this room (for avatars)
+        const roomParticipants = await ctx.db
+          .query("participants")
+          .withIndex("by_room", (q) => q.eq("roomId", participant.roomId))
+          .collect();
+        
         return {
           ...room,
           participantRole: participant.role ?? "team",
           joinedAt: participant.joinedAt,
+          participants: roomParticipants.map((p) => ({
+            avatarUrl: p.avatarUrl,
+            name: p.name,
+          })),
         };
       })
     );

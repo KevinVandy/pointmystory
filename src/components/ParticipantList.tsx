@@ -39,6 +39,7 @@ interface ParticipantListProps {
   roomId: Id<"rooms">;
   isCurrentUserAdmin: boolean;
   votes?: Vote[];
+  pointScalePreset?: string;
 }
 
 export function ParticipantList({
@@ -49,6 +50,7 @@ export function ParticipantList({
   roomId,
   isCurrentUserAdmin,
   votes,
+  pointScalePreset,
 }: ParticipantListProps) {
   // Separate voters and observers
   const voters = participants.filter(
@@ -112,16 +114,82 @@ export function ParticipantList({
       )}
 
       {/* Vote Summary - shown when votes are revealed */}
-      {isRevealed && votes && votes.length > 0 && <VoteSummary votes={votes} />}
+      {isRevealed && votes && votes.length > 0 && (
+        <VoteSummary votes={votes} pointScalePreset={pointScalePreset} />
+      )}
     </div>
   );
 }
 
-function VoteSummary({ votes }: { votes: Vote[] }) {
+// Mapping for t-shirt sizes to numeric values
+const TSHIRT_SIZE_MAP: Record<string, number> = {
+  XS: 1,
+  S: 2,
+  M: 3,
+  L: 5,
+  XL: 8,
+};
+
+// Reverse mapping: number to t-shirt size (for display)
+const NUMBER_TO_TSHIRT: Record<number, string> = {
+  1: "XS",
+  2: "S",
+  3: "M",
+  5: "L",
+  8: "XL",
+};
+
+/**
+ * Convert a vote value to a number for calculations.
+ * Handles numeric strings, t-shirt sizes, and "?" (unsure).
+ */
+function voteValueToNumber(value: string | null): number | null {
+  if (!value || value === "?") {
+    return null;
+  }
+  
+  // Check if it's a t-shirt size
+  const upperValue = value.toUpperCase();
+  if (TSHIRT_SIZE_MAP[upperValue] !== undefined) {
+    return TSHIRT_SIZE_MAP[upperValue];
+  }
+  
+  // Try parsing as a number
+  const num = parseFloat(value);
+  return isNaN(num) ? null : num;
+}
+
+/**
+ * Convert a number back to t-shirt size (finds closest match).
+ * Returns the number as string if no t-shirt size matches.
+ */
+function numberToTShirtSize(num: number): string {
+  // Find closest t-shirt size
+  const tshirtValues = Object.values(TSHIRT_SIZE_MAP).sort((a, b) => a - b);
+  let closest = tshirtValues[0];
+  let minDiff = Math.abs(num - closest);
+  
+  for (const val of tshirtValues) {
+    const diff = Math.abs(num - val);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = val;
+    }
+  }
+  
+  return NUMBER_TO_TSHIRT[closest] || num.toFixed(1);
+}
+
+function VoteSummary({
+  votes,
+  pointScalePreset,
+}: {
+  votes: Vote[];
+  pointScalePreset?: string;
+}) {
   const numericVotes = votes
-    .filter((v) => v.value && v.value !== "?")
-    .map((v) => parseFloat(v.value!))
-    .filter((v) => !isNaN(v));
+    .map((v) => voteValueToNumber(v.value))
+    .filter((v): v is number => v !== null);
 
   if (numericVotes.length === 0) {
     return null;
@@ -138,6 +206,15 @@ function VoteSummary({ votes }: { votes: Vote[] }) {
 
   const questionMarks = votes.filter((v) => v.value === "?").length;
 
+  // Check if we should display as t-shirt sizes
+  const isTShirtScale = pointScalePreset === "tshirt";
+  const displayAverage = isTShirtScale
+    ? numberToTShirtSize(average)
+    : average.toFixed(1);
+  const displayMedian = isTShirtScale
+    ? numberToTShirtSize(median)
+    : median.toString();
+
   return (
     <div className="pt-4 border-t">
       <h3 className="text-sm font-medium text-muted-foreground mb-3">
@@ -145,11 +222,11 @@ function VoteSummary({ votes }: { votes: Vote[] }) {
       </h3>
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="bg-muted/50 rounded-lg p-2">
-          <p className="text-lg font-bold">{average.toFixed(1)}</p>
+          <p className="text-lg font-bold">{displayAverage}</p>
           <p className="text-[10px] text-muted-foreground">Average</p>
         </div>
         <div className="bg-muted/50 rounded-lg p-2">
-          <p className="text-lg font-bold">{median}</p>
+          <p className="text-lg font-bold">{displayMedian}</p>
           <p className="text-[10px] text-muted-foreground">Median</p>
         </div>
         <div className="bg-muted/50 rounded-lg p-2">
