@@ -31,9 +31,11 @@ import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { toast } from "sonner";
 import { setDemoSessionId } from "@/lib/demoSession";
+import { HomePageSkeleton } from "@/components/HomePageSkeleton";
 
 export const Route = createFileRoute("/")({
   component: Home,
+  pendingComponent: HomePageSkeleton,
 });
 
 function Home() {

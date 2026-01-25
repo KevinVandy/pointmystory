@@ -6,6 +6,7 @@ import {
   Scripts,
   useRouteContext,
 } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { createServerFn } from "@tanstack/react-start";
 import { ClerkProvider, useAuth, useUser } from "@clerk/tanstack-react-start";
 import { auth } from "@clerk/tanstack-react-start/server";
@@ -147,7 +148,17 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <>
       <Header />
       <RejoinRoomAlert />
-      <main className="pb-64">{children}</main>
+      <main className="pb-64">
+        <Suspense
+          fallback={
+            <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          }
+        >
+          {children}
+        </Suspense>
+      </main>
       <Toaster position="bottom-right" />
       {/* <TanStackDevtools
         config={{

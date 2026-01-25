@@ -70,15 +70,6 @@ export async function isOrganizationMember(
   // Try multiple possible field names for organization ID
   const userOrgId = identityAny.org_id || identityAny.orgId || identityAny.organization_id || identityAny.organizationId;
   
-  // Log for debugging - check Convex dashboard logs
-  console.log("[Organization Check]", {
-    roomOrgId: room.organizationId,
-    userOrgId,
-    hasOrgId: !!userOrgId,
-    identityKeys: Object.keys(identityAny).filter(k => k.toLowerCase().includes('org')),
-    allIdentityKeys: Object.keys(identityAny),
-  });
-  
   if (!userOrgId) {
     console.warn("[Organization Check] No organization ID found in token. Make sure JWT template includes org_id claim.");
     return false;

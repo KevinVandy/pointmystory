@@ -5,7 +5,6 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { useEffect, useMemo, useState } from "react";
 import { useUser, SignInButton } from "@clerk/tanstack-react-start";
 import { DEFAULT_POINT_VALUES } from "@/components/VotingChoiceButton";
-import { VotingCard } from "@/components/VotingCard";
 import { ParticipantList } from "@/components/ParticipantList";
 import { RoomControls } from "@/components/RoomControls";
 import { RoomSettings } from "@/components/RoomSettings";
@@ -13,19 +12,16 @@ import { VotingTimer } from "@/components/VotingTimer";
 import { RoundHistoryTable } from "@/components/RoundHistoryTable";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Loader2,
-  Globe,
-  Lock,
-  LogIn,
-  AlertCircle,
-  Clock,
-} from "lucide-react";
+import { Loader2, Globe, Lock, LogIn, AlertCircle, Clock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getDemoSessionId } from "@/lib/demoSession";
+import { VotingCard } from "@/components/VotingCard";
+import { RoomPageSkeleton } from "@/components/RoomPageSkeleton";
 
 export const Route = createFileRoute("/room/$roomId")({
   component: RoomPage,
+  ssr: false,
+  pendingComponent: RoomPageSkeleton,
 });
 
 function RoomPage() {
@@ -53,9 +49,12 @@ function RoomPage() {
   const participants =
     participantsResult?.status === "ok" ? participantsResult.participants : [];
   const votes = votesResult?.status === "ok" ? votesResult.votes : [];
-  const currentVote = useQuery(api.votes.getCurrentVote, {
+  const currentVoteQuery = useQuery(api.votes.getCurrentVote, {
     roomId: roomId as Id<"rooms">,
   });
+  const currentVote = currentVoteQuery
+    ? { value: currentVoteQuery.value }
+    : null;
   const currentParticipant = useQuery(api.participants.getCurrentParticipant, {
     roomId: roomId as Id<"rooms">,
   });
@@ -211,13 +210,6 @@ function RoomPage() {
 
   const handleReveal = () => {
     revealVotes({
-      roomId: roomId as Id<"rooms">,
-      demoSessionId: isDemoRoom ? (demoSessionId ?? undefined) : undefined,
-    });
-  };
-
-  const handleStartTimer = () => {
-    startTimerMutation({
       roomId: roomId as Id<"rooms">,
       demoSessionId: isDemoRoom ? (demoSessionId ?? undefined) : undefined,
     });
