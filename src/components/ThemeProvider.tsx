@@ -34,7 +34,10 @@ interface ThemeProviderProps {
   isSignedIn?: boolean;
 }
 
-export function ThemeProvider({ children, isSignedIn = false }: ThemeProviderProps) {
+export function ThemeProvider({
+  children,
+  isSignedIn = false,
+}: ThemeProviderProps) {
   // Always start with light theme for SSR consistency
   const [theme, setThemeState] = useState<Theme>("light");
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
@@ -103,7 +106,9 @@ export function ThemeProvider({ children, isSignedIn = false }: ThemeProviderPro
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme, isEnabled }}>
+    <ThemeContext.Provider
+      value={{ theme, setTheme, resolvedTheme, isEnabled }}
+    >
       {children}
     </ThemeContext.Provider>
   );

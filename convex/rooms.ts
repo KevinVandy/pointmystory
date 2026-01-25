@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireRoomAdmin, canViewRoomWithoutAuth } from "./permissions";
 import { getPointScaleForPreset, DEFAULT_PRESET } from "./pointScales";
+import { calculateVoteStats } from "./rounds";
 
 // Default timer duration in seconds (3 minutes)
 const DEFAULT_TIMER_DURATION = 180;
@@ -37,6 +38,18 @@ export const create = mutation({
       pointScalePreset: preset,
       pointScale: pointScale,
       timerDurationSeconds: args.timerDurationSeconds ?? DEFAULT_TIMER_DURATION,
+    });
+
+    // Create the initial round for this room
+    const roundId = await ctx.db.insert("rounds", {
+      roomId,
+      createdAt: Date.now(),
+      isRevealed: false,
+    });
+
+    // Update room with the current round
+    await ctx.db.patch(roomId, {
+      currentRoundId: roundId,
     });
 
     // Auto-add the creator as a participant with admin role
@@ -168,13 +181,74 @@ export const reveal = mutation({
       throw new Error("Room not found");
     }
 
+    // Update room revealed state
     await ctx.db.patch(args.roomId, {
       isRevealed: true,
     });
+
+    // Update the current round with reveal info and stats
+    if (room.currentRoundId) {
+      const round = await ctx.db.get(room.currentRoundId);
+      if (round) {
+        // Get all votes for this round
+        const votes = await ctx.db
+          .query("votes")
+          .withIndex("by_round", (q) => q.eq("roundId", room.currentRoundId!))
+          .collect();
+
+        // Calculate stats
+        const stats = calculateVoteStats(votes);
+
+        // Update round with reveal time, stats, and story name
+        await ctx.db.patch(room.currentRoundId, {
+          isRevealed: true,
+          revealedAt: Date.now(),
+          name: round.name || room.currentStory || undefined,
+          ...stats,
+        });
+      }
+    }
   },
 });
 
-// Reset votes for a new round (admin only)
+// Start a new round (admin only) - replaces resetVotes
+export const startNewRound = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    name: v.optional(v.string()),
+    ticketNumber: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireRoomAdmin(ctx, args.roomId);
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    // Create a new round
+    const roundId = await ctx.db.insert("rounds", {
+      roomId: args.roomId,
+      name: args.name,
+      ticketNumber: args.ticketNumber,
+      createdAt: Date.now(),
+      isRevealed: false,
+    });
+
+    // Update room to point to the new round and reset state
+    await ctx.db.patch(args.roomId, {
+      currentRoundId: roundId,
+      isRevealed: false,
+      currentStory: args.name || args.ticketNumber || undefined,
+      timerStartedAt: undefined,
+      timerEndsAt: undefined,
+    });
+
+    return roundId;
+  },
+});
+
+// Legacy alias for backward compatibility
 export const resetVotes = mutation({
   args: {
     roomId: v.id("rooms"),
@@ -187,23 +261,23 @@ export const resetVotes = mutation({
       throw new Error("Room not found");
     }
 
-    // Delete all votes for this room
-    const votes = await ctx.db
-      .query("votes")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
-      .collect();
+    // Create a new round (without name/ticket)
+    const roundId = await ctx.db.insert("rounds", {
+      roomId: args.roomId,
+      createdAt: Date.now(),
+      isRevealed: false,
+    });
 
-    for (const vote of votes) {
-      await ctx.db.delete(vote._id);
-    }
-
-    // Reset the revealed state and stop the timer
+    // Update room to point to the new round and reset state
     await ctx.db.patch(args.roomId, {
+      currentRoundId: roundId,
       isRevealed: false,
       currentStory: undefined,
       timerStartedAt: undefined,
       timerEndsAt: undefined,
     });
+
+    return roundId;
   },
 });
 

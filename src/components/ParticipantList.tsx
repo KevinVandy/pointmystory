@@ -112,9 +112,7 @@ export function ParticipantList({
       )}
 
       {/* Vote Summary - shown when votes are revealed */}
-      {isRevealed && votes && votes.length > 0 && (
-        <VoteSummary votes={votes} />
-      )}
+      {isRevealed && votes && votes.length > 0 && <VoteSummary votes={votes} />}
     </div>
   );
 }

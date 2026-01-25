@@ -1,18 +1,23 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, RefreshCw, Copy, Check, Timer, TimerOff } from "lucide-react";
+import { Eye, Copy, Timer, TimerOff } from "lucide-react";
 import { useState } from "react";
 import { VotingTimer } from "./VotingTimer";
+import { NewRoundDialog } from "./NewRoundDialog";
+import type { Id } from "../../convex/_generated/dataModel";
+import { toast } from "sonner";
 
 interface RoomControlsProps {
+  roomId: Id<"rooms">;
   roomName: string;
   currentStory: string | undefined;
+  currentRoundName?: string;
+  currentTicketNumber?: string;
   isRevealed: boolean;
   isHost: boolean;
   hasVotes: boolean;
   onUpdateStory: (story: string) => void;
   onReveal: () => void;
-  onReset: () => void;
   timerEndsAt?: number | null;
   timerStartedAt?: number | null;
   onStartTimer?: () => void;
@@ -20,21 +25,25 @@ interface RoomControlsProps {
 }
 
 export function RoomControls({
+  roomId,
   roomName,
   currentStory,
+  currentRoundName,
+  currentTicketNumber,
   isRevealed,
   isHost,
   hasVotes,
   onUpdateStory,
   onReveal,
-  onReset,
   timerEndsAt,
   timerStartedAt,
   onStartTimer,
   onStopTimer,
 }: RoomControlsProps) {
   const [storyInput, setStoryInput] = useState(currentStory || "");
-  const [copied, setCopied] = useState(false);
+
+  // Display the current round info
+  const displayStory = currentStory || currentRoundName || currentTicketNumber;
 
   const handleStorySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,8 +54,7 @@ export function RoomControls({
 
   const copyRoomLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    toast.success("Room link copied");
   };
 
   const isTimerRunning = timerEndsAt && timerStartedAt;
@@ -57,9 +65,14 @@ export function RoomControls({
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold">{roomName}</h1>
-          {currentStory && (
+          {displayStory && (
             <p className="text-muted-foreground mt-1">
-              Voting on: <span className="font-medium">{currentStory}</span>
+              Voting on: <span className="font-medium">{displayStory}</span>
+              {currentTicketNumber && currentTicketNumber !== displayStory && (
+                <span className="ml-2 font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                  {currentTicketNumber}
+                </span>
+              )}
             </p>
           )}
         </div>
@@ -78,17 +91,8 @@ export function RoomControls({
           onClick={copyRoomLink}
           className="gap-2"
         >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4" />
-              Copied!
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4" />
-              Copy Link
-            </>
-          )}
+          <Copy className="w-4 h-4" />
+          Copy Link
         </Button>
       </div>
 
@@ -145,10 +149,7 @@ export function RoomControls({
                 Reveal Votes
               </Button>
             ) : (
-              <Button onClick={onReset} variant="secondary" className="gap-2">
-                <RefreshCw className="w-4 h-4" />
-                New Round
-              </Button>
+              <NewRoundDialog roomId={roomId} />
             )}
           </div>
         </div>

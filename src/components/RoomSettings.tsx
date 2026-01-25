@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as React from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -13,7 +14,10 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Settings, Globe, Lock, Copy, Check, Timer } from "lucide-react";
+import { Switch } from "./ui/switch";
+import { Slider } from "./ui/slider";
+import { Settings, Globe, Lock, Copy, Timer } from "lucide-react";
+import { toast } from "sonner";
 
 // Point scale presets - should match convex/pointScales.ts
 const POINT_SCALE_PRESETS = {
@@ -29,14 +33,6 @@ const PRESET_OPTIONS = [
   { value: "powers", label: "Powers of 2 (1, 2, 4, 8, 16, 32, ?)" },
   { value: "linear", label: "Linear (0.5, 1, 2, 4, 8, 12, 16, 24, ?)" },
   { value: "custom", label: "Custom" },
-];
-
-const TIMER_OPTIONS = [
-  { value: "60", label: "1 minute" },
-  { value: "120", label: "2 minutes" },
-  { value: "180", label: "3 minutes" },
-  { value: "300", label: "5 minutes" },
-  { value: "600", label: "10 minutes" },
 ];
 
 interface RoomSettingsProps {
@@ -64,16 +60,17 @@ export function RoomSettings({
     currentPreset === "custom" ? currentPointScale.join(", ") : "",
   );
   const [timerDuration, setTimerDuration] = useState(
-    String(currentTimerDuration || 180),
+    currentTimerDuration || 180,
   );
   const [isSaving, setIsSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   if (!isAdmin) {
     return null;
   }
 
-  const handlePresetChange = async (newPreset: string) => {
+  const handlePresetChange = async (newPreset: string | null) => {
+    if (!newPreset) return;
+
     setPreset(newPreset);
 
     if (newPreset !== "custom") {
@@ -135,23 +132,52 @@ export function RoomSettings({
   const copyShareLink = async () => {
     const url = window.location.href;
     await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    toast.success("Link copied to clipboard");
   };
 
-  const handleTimerDurationChange = async (newDuration: string) => {
+  // Debounce timer for saving
+  const saveTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleTimerDurationChange = (newDuration: number) => {
+    // Update local state immediately for responsive UI
     setTimerDuration(newDuration);
-    setIsSaving(true);
-    try {
-      await updateSettings({
-        roomId,
-        timerDurationSeconds: parseInt(newDuration, 10),
-      });
-    } catch (error) {
-      console.error("Failed to update timer duration:", error);
-    } finally {
-      setIsSaving(false);
+
+    // Clear existing timeout
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
     }
+
+    // Debounce the save operation
+    saveTimerRef.current = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        await updateSettings({
+          roomId,
+          timerDurationSeconds: newDuration,
+        });
+      } catch (error) {
+        console.error("Failed to update timer duration:", error);
+        toast.error("Failed to update timer duration");
+        // Revert on error
+        setTimerDuration(currentTimerDuration || 180);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 500);
+  };
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const formatTimerDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
   };
 
   return (
@@ -164,53 +190,57 @@ export function RoomSettings({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Timer Duration */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium flex items-center gap-1">
-            <Timer className="size-4" />
-            Default Timer Duration
-          </Label>
-          <Select
-            value={timerDuration}
-            onValueChange={handleTimerDurationChange}
-            disabled={isSaving}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select timer duration" />
-            </SelectTrigger>
-            <SelectContent>
-              {TIMER_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium flex items-center gap-1">
+              <Timer className="size-4" />
+              Default Timer Duration
+            </Label>
+            <span className="text-sm text-muted-foreground">
+              {formatTimerDuration(timerDuration)}
+            </span>
+          </div>
+          <Slider
+            min={60}
+            max={600}
+            step={30}
+            value={[timerDuration]}
+            onValueChange={(newValue) => {
+              // BaseUI slider passes the value directly as a number
+              const value =
+                typeof newValue === "number"
+                  ? newValue
+                  : Array.isArray(newValue)
+                    ? newValue[0]
+                    : timerDuration;
+              handleTimerDurationChange(value);
+            }}
+            className="w-full"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>1 min</span>
+            <span>10 min</span>
+          </div>
         </div>
 
         {/* Visibility Toggle */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Room Visibility</Label>
-          <div className="flex gap-2">
-            <Button
-              variant={visibility === "private" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleVisibilityChange("private")}
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              {visibility === "public" ? (
+                <Globe className="size-4" />
+              ) : (
+                <Lock className="size-4" />
+              )}
+              Room Visibility
+            </Label>
+            <Switch
+              checked={visibility === "public"}
+              onCheckedChange={(checked) =>
+                handleVisibilityChange(checked ? "public" : "private")
+              }
               disabled={isSaving}
-              className="flex-1"
-            >
-              <Lock className="size-4 mr-1" />
-              Private
-            </Button>
-            <Button
-              variant={visibility === "public" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleVisibilityChange("public")}
-              disabled={isSaving}
-              className="flex-1"
-            >
-              <Globe className="size-4 mr-1" />
-              Public
-            </Button>
+            />
           </div>
           <p className="text-xs text-muted-foreground">
             {visibility === "public"
@@ -222,18 +252,41 @@ export function RoomSettings({
         {/* Point Scale Preset */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Point Scale</Label>
-          <Select value={preset} onValueChange={handlePresetChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a point scale" />
-            </SelectTrigger>
-            <SelectContent>
-              {PRESET_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
+          <div className="flex items-start gap-3">
+            <div className="flex-1">
+              <Select value={preset} onValueChange={handlePresetChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a point scale" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRESET_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Current Scale Preview */}
+            <div className="flex flex-wrap gap-1 items-center pt-2">
+              {(preset === "custom" && customScale
+                ? customScale
+                    .split(",")
+                    .map((v) => v.trim())
+                    .filter(Boolean)
+                : POINT_SCALE_PRESETS[
+                    preset as keyof typeof POINT_SCALE_PRESETS
+                  ] || currentPointScale
+              ).map((value, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium"
+                >
+                  {value}
+                </span>
               ))}
-            </SelectContent>
-          </Select>
+            </div>
+          </div>
         </div>
 
         {/* Custom Scale Input */}
@@ -261,29 +314,6 @@ export function RoomSettings({
           </div>
         )}
 
-        {/* Current Scale Preview */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Current Scale</Label>
-          <div className="flex flex-wrap gap-1">
-            {(preset === "custom" && customScale
-              ? customScale
-                  .split(",")
-                  .map((v) => v.trim())
-                  .filter(Boolean)
-              : POINT_SCALE_PRESETS[
-                  preset as keyof typeof POINT_SCALE_PRESETS
-                ] || currentPointScale
-            ).map((value, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium"
-              >
-                {value}
-              </span>
-            ))}
-          </div>
-        </div>
-
         {/* Share Link */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Share Link</Label>
@@ -294,11 +324,7 @@ export function RoomSettings({
               className="flex-1 text-xs"
             />
             <Button size="sm" variant="outline" onClick={copyShareLink}>
-              {copied ? (
-                <Check className="size-4" />
-              ) : (
-                <Copy className="size-4" />
-              )}
+              <Copy className="size-4" />
             </Button>
           </div>
         </div>

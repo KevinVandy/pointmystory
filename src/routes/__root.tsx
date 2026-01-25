@@ -19,6 +19,7 @@ import { ConvexQueryClient } from "@convex-dev/react-query";
 
 import Header from "../components/Header";
 import { ThemeProvider } from "../components/ThemeProvider";
+import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 
@@ -139,6 +140,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <>
       <Header />
       {children}
+      <Toaster position="bottom-right" />
       {/* <TanStackDevtools
         config={{
           position: "bottom-right",

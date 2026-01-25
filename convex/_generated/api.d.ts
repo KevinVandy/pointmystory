@@ -12,6 +12,7 @@ import type * as participants from "../participants.js";
 import type * as permissions from "../permissions.js";
 import type * as pointScales from "../pointScales.js";
 import type * as rooms from "../rooms.js";
+import type * as rounds from "../rounds.js";
 import type * as votes from "../votes.js";
 
 import type {
@@ -25,6 +26,7 @@ declare const fullApi: ApiFromModules<{
   permissions: typeof permissions;
   pointScales: typeof pointScales;
   rooms: typeof rooms;
+  rounds: typeof rounds;
   votes: typeof votes;
 }>;
 

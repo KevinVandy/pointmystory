@@ -1,0 +1,385 @@
+"use client";
+
+import * as React from "react";
+import { useState } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import {
+  flexRender,
+  getCoreRowModel,
+  getExpandedRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ChevronDown, ChevronRight, Edit2, User } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// Type for round data from the API
+interface Round {
+  _id: Id<"rounds">;
+  roomId: Id<"rooms">;
+  name?: string;
+  ticketNumber?: string;
+  createdAt: number;
+  revealedAt?: number;
+  isRevealed: boolean;
+  finalScore?: string;
+  averageScore?: number;
+  medianScore?: number;
+  unsureCount?: number;
+  roundNumber: number;
+}
+
+interface RoundHistoryTableProps {
+  roomId: Id<"rooms">;
+  isAdmin: boolean;
+  currentRoundId?: Id<"rounds">;
+}
+
+export function RoundHistoryTable({
+  roomId,
+  isAdmin,
+  currentRoundId,
+}: RoundHistoryTableProps) {
+  const rounds = useQuery(api.rounds.listByRoom, { roomId });
+
+  // Filter to show all revealed rounds (completed rounds)
+  // Include the current round if it's been revealed
+  const completedRounds = React.useMemo(() => {
+    if (!rounds) return [];
+    return rounds.filter((round) => round.isRevealed);
+  }, [rounds]);
+
+  const columns = React.useMemo<ColumnDef<Round>[]>(
+    () => [
+      {
+        id: "expander",
+        header: () => null,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-0 h-8 w-8"
+            onClick={() => row.toggleExpanded()}
+          >
+            {row.getIsExpanded() ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+        ),
+      },
+      {
+        accessorKey: "roundNumber",
+        header: "#",
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.roundNumber}</span>
+        ),
+      },
+      {
+        accessorKey: "name",
+        header: "Ticket",
+        cell: ({ row }) => (
+          <span className="truncate max-w-[150px] block">
+            {row.original.name || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "ticketNumber",
+        header: "Ticket #",
+        cell: ({ row }) => (
+          <span className="font-mono text-xs">
+            {row.original.ticketNumber || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "finalScore",
+        header: "Final",
+        cell: ({ row }) => (
+          <EditableFinalScore round={row.original} isAdmin={isAdmin} />
+        ),
+      },
+      {
+        accessorKey: "averageScore",
+        header: "Avg",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.averageScore?.toFixed(1) ?? "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "medianScore",
+        header: "Med",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.medianScore ?? "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "unsureCount",
+        header: "?",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.unsureCount ?? 0}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "revealedAt",
+        header: "Date",
+        cell: ({ row }) => {
+          if (!row.original.revealedAt) return "-";
+          return (
+            <span className="text-xs text-muted-foreground">
+              {new Date(row.original.revealedAt).toLocaleDateString()}
+            </span>
+          );
+        },
+      },
+    ],
+    [isAdmin],
+  );
+
+  const table = useReactTable({
+    data: completedRounds,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getRowCanExpand: () => true,
+  });
+
+  if (!rounds) {
+    return null;
+  }
+
+  if (completedRounds.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-medium text-muted-foreground">
+        Round History ({completedRounds.length})
+      </h3>
+      <div className="overflow-hidden rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="text-xs">
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <React.Fragment key={row.id}>
+                  <TableRow data-state={row.getIsExpanded() && "expanded"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="py-2">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {row.getIsExpanded() && (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} className="p-0">
+                        <RoundVoteDetails roundId={row.original._id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No completed rounds yet.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+// Editable final score cell component
+function EditableFinalScore({
+  round,
+  isAdmin,
+}: {
+  round: Round;
+  isAdmin: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(round.finalScore || "");
+  const setFinalScore = useMutation(api.rounds.setFinalScore);
+
+  // Update local value when round changes
+  React.useEffect(() => {
+    setValue(round.finalScore || "");
+  }, [round.finalScore]);
+
+  const handleSave = async () => {
+    if (value.trim()) {
+      try {
+        await setFinalScore({
+          roundId: round._id,
+          finalScore: value.trim(),
+        });
+        setOpen(false);
+      } catch (error) {
+        console.error("Failed to set final score:", error);
+      }
+    } else {
+      setOpen(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setValue(round.finalScore || "");
+    setOpen(false);
+  };
+
+  return (
+    <div className="flex items-center gap-1 group">
+      <span
+        className={cn(
+          "font-bold",
+          round.finalScore ? "text-primary" : "text-muted-foreground",
+        )}
+      >
+        {round.finalScore || "-"}
+      </span>
+      {isAdmin && (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger className="focus-visible:border-ring focus-visible:ring-ring/50 inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100 [&_svg]:pointer-events-none [&_svg]:shrink-0">
+            <Edit2 className="h-3 w-3" />
+          </PopoverTrigger>
+          <PopoverContent className="w-64" align="end">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Final Score</label>
+                <Input
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder="Enter score"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSave();
+                    if (e.key === "Escape") handleCancel();
+                  }}
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleSave}>
+                  Save
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+// Expanded row showing vote details
+function RoundVoteDetails({ roundId }: { roundId: Id<"rounds"> }) {
+  const roundWithVotes = useQuery(api.rounds.getWithVotes, { roundId });
+
+  // undefined means still loading
+  if (roundWithVotes === undefined) {
+    return (
+      <div className="p-4 bg-muted/30 text-center text-sm text-muted-foreground">
+        Loading votes...
+      </div>
+    );
+  }
+
+  // null means round not found or access denied
+  if (roundWithVotes === null) {
+    return (
+      <div className="p-4 bg-muted/30 text-center text-sm text-muted-foreground">
+        Unable to load votes for this round.
+      </div>
+    );
+  }
+
+  if (!roundWithVotes.votes || roundWithVotes.votes.length === 0) {
+    return (
+      <div className="p-4 bg-muted/30 text-center text-sm text-muted-foreground">
+        No votes recorded for this round.
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 bg-muted/30">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        {roundWithVotes.votes.map((vote) => (
+          <div
+            key={vote._id}
+            className="flex items-center gap-2 bg-background rounded-lg p-2 border"
+          >
+            {vote.participantAvatar ? (
+              <img
+                src={vote.participantAvatar}
+                alt={vote.participantName}
+                className="w-6 h-6 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                <User className="w-3 h-3 text-muted-foreground" />
+              </div>
+            )}
+            <span className="text-xs truncate flex-1">
+              {vote.participantName}
+            </span>
+            <span className="font-bold text-sm">{vote.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

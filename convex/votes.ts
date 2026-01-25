@@ -23,6 +23,11 @@ export const cast = mutation({
       throw new Error("Cannot vote after votes have been revealed");
     }
 
+    // Ensure there's a current round
+    if (!room.currentRoundId) {
+      throw new Error("No active round in this room");
+    }
+
     // Get the effective point scale for this room
     const pointScale = getEffectivePointScale(room.pointScale, room.pointScalePreset);
 
@@ -49,11 +54,11 @@ export const cast = mutation({
       throw new Error("Observers cannot vote. Switch to voter mode to cast a vote.");
     }
 
-    // Check for existing vote
+    // Check for existing vote in the current round
     const existingVote = await ctx.db
       .query("votes")
-      .withIndex("by_participant", (q) => q.eq("participantId", participant._id))
-      .filter((q) => q.eq(q.field("roomId"), args.roomId))
+      .withIndex("by_round", (q) => q.eq("roundId", room.currentRoundId!))
+      .filter((q) => q.eq(q.field("participantId"), participant._id))
       .unique();
 
     if (existingVote) {
@@ -65,9 +70,10 @@ export const cast = mutation({
       return existingVote._id;
     }
 
-    // Create new vote
+    // Create new vote linked to the current round
     const voteId = await ctx.db.insert("votes", {
       roomId: args.roomId,
+      roundId: room.currentRoundId,
       participantId: participant._id,
       value: args.value,
       votedAt: Date.now(),
@@ -77,7 +83,7 @@ export const cast = mutation({
   },
 });
 
-// Get all votes for a room
+// Get all votes for the current round in a room
 // Works for public rooms without auth (read-only)
 export const getByRoom = query({
   args: {
@@ -98,9 +104,15 @@ export const getByRoom = query({
       }
     }
 
+    // If no current round, return empty
+    if (!room.currentRoundId) {
+      return [];
+    }
+
+    // Get votes for the current round only
     const votes = await ctx.db
       .query("votes")
-      .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
+      .withIndex("by_round", (q) => q.eq("roundId", room.currentRoundId!))
       .collect();
 
     // If votes aren't revealed, only return vote existence (not values)
@@ -134,7 +146,7 @@ export const getByRoom = query({
   },
 });
 
-// Get the current user's vote for a room
+// Get the current user's vote for the current round in a room
 export const getCurrentVote = query({
   args: {
     roomId: v.id("rooms"),
@@ -142,6 +154,11 @@ export const getCurrentVote = query({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
+      return null;
+    }
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room || !room.currentRoundId) {
       return null;
     }
 
@@ -156,10 +173,11 @@ export const getCurrentVote = query({
       return null;
     }
 
+    // Get the vote for the current round
     return await ctx.db
       .query("votes")
-      .withIndex("by_participant", (q) => q.eq("participantId", participant._id))
-      .filter((q) => q.eq(q.field("roomId"), args.roomId))
+      .withIndex("by_round", (q) => q.eq("roundId", room.currentRoundId!))
+      .filter((q) => q.eq(q.field("participantId"), participant._id))
       .unique();
   },
 });

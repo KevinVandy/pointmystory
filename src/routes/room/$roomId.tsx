@@ -10,6 +10,7 @@ import { RoomControls } from "@/components/RoomControls";
 import { RoomSettings } from "@/components/RoomSettings";
 import { ParticipantTypeToggle } from "@/components/ParticipantTypeToggle";
 import { VotingTimer } from "@/components/VotingTimer";
+import { RoundHistoryTable } from "@/components/RoundHistoryTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Globe, Lock, LogIn } from "lucide-react";
@@ -39,13 +40,15 @@ function RoomPage() {
   const currentParticipant = useQuery(api.participants.getCurrentParticipant, {
     roomId: roomId as Id<"rooms">,
   });
+  const currentRound = useQuery(api.rounds.getCurrentRound, {
+    roomId: roomId as Id<"rooms">,
+  });
 
   // Convex mutations
   const joinRoom = useMutation(api.participants.join);
   const castVote = useMutation(api.votes.cast);
   const updateStory = useMutation(api.rooms.updateStory);
   const revealVotes = useMutation(api.rooms.reveal);
-  const resetVotesMutation = useMutation(api.rooms.resetVotes);
   const startTimerMutation = useMutation(api.rooms.startTimer);
   const stopTimerMutation = useMutation(api.rooms.stopTimer);
 
@@ -170,10 +173,6 @@ function RoomPage() {
     revealVotes({ roomId: roomId as Id<"rooms"> });
   };
 
-  const handleReset = () => {
-    resetVotesMutation({ roomId: roomId as Id<"rooms"> });
-  };
-
   const handleStartTimer = () => {
     startTimerMutation({ roomId: roomId as Id<"rooms"> });
   };
@@ -199,14 +198,16 @@ function RoomPage() {
         {/* Room Controls - only for admins when authenticated */}
         {isAuthenticated && (
           <RoomControls
+            roomId={roomId as Id<"rooms">}
             roomName={room.name}
             currentStory={room.currentStory}
+            currentRoundName={currentRound?.name}
+            currentTicketNumber={currentRound?.ticketNumber}
             isRevealed={room.isRevealed}
             isHost={isAdmin}
             hasVotes={hasVotes}
             onUpdateStory={handleUpdateStory}
             onReveal={handleReveal}
-            onReset={handleReset}
             timerEndsAt={room.timerEndsAt}
             timerStartedAt={room.timerStartedAt}
             onStartTimer={handleStartTimer}
@@ -286,7 +287,14 @@ function RoomPage() {
               </CardContent>
             </Card>
 
-            {/* Admin Settings Panel */}
+            {/* Round History Table */}
+            <RoundHistoryTable
+              roomId={roomId as Id<"rooms">}
+              isAdmin={isAdmin}
+              currentRoundId={room.currentRoundId}
+            />
+
+            {/* Admin Settings Panel - at the bottom */}
             {isAuthenticated && isAdmin && (
               <RoomSettings
                 roomId={roomId as Id<"rooms">}
@@ -309,7 +317,10 @@ function RoomPage() {
                 hostId={room.hostId}
                 roomId={roomId as Id<"rooms">}
                 isCurrentUserAdmin={isAdmin}
-                votes={votes?.map((v) => ({ value: v.value, hasVoted: v.hasVoted }))}
+                votes={votes?.map((v) => ({
+                  value: v.value,
+                  hasVoted: v.hasVoted,
+                }))}
               />
             </CardContent>
           </Card>
