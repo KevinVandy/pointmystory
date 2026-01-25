@@ -7,7 +7,7 @@ import {
   useRouteContext,
 } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { ClerkProvider, useAuth } from "@clerk/tanstack-react-start";
+import { ClerkProvider, useAuth, useUser } from "@clerk/tanstack-react-start";
 import { auth } from "@clerk/tanstack-react-start/server";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
@@ -18,6 +18,7 @@ import { ConvexQueryClient } from "@convex-dev/react-query";
 // import { TanStackDevtools } from "@tanstack/react-devtools";
 
 import Header from "../components/Header";
+import { ThemeProvider } from "../components/ThemeProvider";
 
 import appCss from "../styles.css?url";
 
@@ -25,7 +26,7 @@ import appCss from "../styles.css?url";
 const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
   try {
     const authState = await auth();
-    
+
     // Only try to get token if user is authenticated
     let token = null;
     if (authState.userId) {
@@ -103,12 +104,20 @@ function RootComponent() {
   return (
     <ClerkProvider>
       <ConvexProviderWithClerk client={context.convexClient} useAuth={useAuth}>
-        <RootDocument>
-          <Outlet />
-        </RootDocument>
+        <ThemeWrapper>
+          <RootDocument>
+            <Outlet />
+          </RootDocument>
+        </ThemeWrapper>
       </ConvexProviderWithClerk>
     </ClerkProvider>
   );
+}
+
+// Wrapper to get Clerk user state and pass to ThemeProvider
+function ThemeWrapper({ children }: { children: React.ReactNode }) {
+  const { isSignedIn } = useUser();
+  return <ThemeProvider isSignedIn={!!isSignedIn}>{children}</ThemeProvider>;
 }
 
 function RootShell({ children }: { children: React.ReactNode }) {

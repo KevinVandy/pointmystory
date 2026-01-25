@@ -6,7 +6,13 @@ import {
   SignInButton,
   SignUpButton,
 } from "@clerk/tanstack-react-start";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Zap, Eye } from "lucide-react";
 
@@ -24,8 +30,8 @@ function Home() {
             Point My Story
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Real-time sprint planning poker for agile teams. Estimate stories together,
-            reveal votes instantly, and reach consensus faster.
+            Real-time sprint planning poker for agile teams. Estimate stories
+            together, reveal votes instantly, and reach consensus faster.
           </p>
         </div>
 

@@ -6,6 +6,7 @@ import {
   UserButton,
 } from "@clerk/tanstack-react-start";
 import { Target } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
 
 export default function Header() {
   return (
@@ -19,8 +20,9 @@ export default function Header() {
           <span>Point My Story</span>
         </Link>
 
-        {/* Auth Controls */}
-        <div className="flex items-center gap-4">
+        {/* Controls */}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
           <SignedIn>
             <UserButton
               appearance={{

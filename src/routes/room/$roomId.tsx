@@ -3,12 +3,16 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useEffect, useMemo } from "react";
-import { useUser } from "@clerk/tanstack-react-start";
-import { VotingCardGrid } from "@/components/VotingCard";
+import { useUser, SignInButton } from "@clerk/tanstack-react-start";
+import { VotingCardGrid, DEFAULT_POINT_VALUES } from "@/components/VotingCard";
 import { ParticipantList } from "@/components/ParticipantList";
 import { RoomControls } from "@/components/RoomControls";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { RoomSettings } from "@/components/RoomSettings";
+import { ParticipantTypeToggle } from "@/components/ParticipantTypeToggle";
+import { VotingTimer } from "@/components/VotingTimer";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, Globe, Lock, LogIn } from "lucide-react";
 
 export const Route = createFileRoute("/room/$roomId")({
   component: RoomPage,
@@ -20,7 +24,7 @@ function RoomPage() {
   const { user, isLoaded: userLoaded } = useUser();
 
   // Convex queries
-  const room = useQuery(api.rooms.get, {
+  const roomResult = useQuery(api.rooms.get, {
     roomId: roomId as Id<"rooms">,
   });
   const participants = useQuery(api.participants.listByRoom, {
@@ -41,9 +45,32 @@ function RoomPage() {
   const castVote = useMutation(api.votes.cast);
   const updateStory = useMutation(api.rooms.updateStory);
   const revealVotes = useMutation(api.rooms.reveal);
-  const resetVotes = useMutation(api.rooms.resetVotes);
+  const resetVotesMutation = useMutation(api.rooms.resetVotes);
+  const startTimerMutation = useMutation(api.rooms.startTimer);
+  const stopTimerMutation = useMutation(api.rooms.stopTimer);
 
-  // Auto-join room when user is loaded and not already a participant
+  // Extract room from result
+  const room = roomResult?.status === "ok" ? roomResult.room : null;
+
+  // Derived values
+  const isPublicRoom = (room?.visibility ?? "private") === "public";
+  const isAuthenticated = !!user;
+  const isParticipant = currentParticipant !== null;
+
+  // Role and type - default for new/missing fields
+  const participantRole = currentParticipant?.role ?? "team";
+  const participantType = currentParticipant?.participantType ?? "voter";
+  const isAdmin = participantRole === "admin" || room?.hostId === user?.id;
+  const isObserver = participantType === "observer";
+
+  // Point scale from room or default
+  const pointScale =
+    room?.pointScale && room.pointScale.length > 0
+      ? room.pointScale
+      : [...DEFAULT_POINT_VALUES];
+
+  // Auto-join room when user is authenticated and not already a participant
+  // (only for authenticated users viewing any room)
   useEffect(() => {
     if (userLoaded && user && room && currentParticipant === null) {
       joinRoom({ roomId: roomId as Id<"rooms"> });
@@ -58,15 +85,13 @@ function RoomPage() {
       const vote = votes.find((v) => v.participantId === participant._id);
       return {
         participant,
-        vote: vote
-          ? { value: vote.value, hasVoted: vote.hasVoted }
-          : null,
+        vote: vote ? { value: vote.value, hasVoted: vote.hasVoted } : null,
       };
     });
   }, [participants, votes]);
 
   // Loading state
-  if (!userLoaded || room === undefined) {
+  if (!userLoaded || roomResult === undefined) {
     return (
       <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -75,7 +100,7 @@ function RoomPage() {
   }
 
   // Room not found
-  if (room === null) {
+  if (roomResult.status === "not_found") {
     return (
       <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
         <Card className="max-w-md">
@@ -96,26 +121,38 @@ function RoomPage() {
     );
   }
 
-  // User not signed in
-  if (!user) {
+  // Access denied - private room and user not signed in
+  if (roomResult.status === "access_denied") {
     return (
       <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="pt-6 text-center">
-            <h2 className="text-xl font-semibold mb-2">Sign In Required</h2>
-            <p className="text-muted-foreground">
-              Please sign in to join this planning poker room.
+            <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h2 className="text-xl font-semibold mb-2">Private Room</h2>
+            <p className="text-muted-foreground mb-4">
+              This room is private. Please sign in to access it.
             </p>
+            <SignInButton mode="modal">
+              <Button>
+                <LogIn className="w-4 h-4 mr-2" />
+                Sign In to Access
+              </Button>
+            </SignInButton>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const isHost = room.hostId === user.id;
+  // At this point, room is guaranteed to exist (status === "ok")
+  if (!room) {
+    return null; // Should never happen, but TypeScript needs this
+  }
+
   const hasVotes = (votes?.length ?? 0) > 0;
 
   const handleVote = (value: string) => {
+    if (!isAuthenticated) return;
     castVote({
       roomId: roomId as Id<"rooms">,
       value,
@@ -134,49 +171,133 @@ function RoomPage() {
   };
 
   const handleReset = () => {
-    resetVotes({ roomId: roomId as Id<"rooms"> });
+    resetVotesMutation({ roomId: roomId as Id<"rooms"> });
   };
+
+  const handleStartTimer = () => {
+    startTimerMutation({ roomId: roomId as Id<"rooms"> });
+  };
+
+  const handleStopTimer = () => {
+    stopTimerMutation({ roomId: roomId as Id<"rooms"> });
+  };
+
+  // Unauthenticated user viewing public room (read-only)
+  const isReadOnlyViewer = !isAuthenticated && isPublicRoom;
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-6">
-        {/* Room Controls */}
-        <RoomControls
-          roomName={room.name}
-          currentStory={room.currentStory}
-          isRevealed={room.isRevealed}
-          isHost={isHost}
-          hasVotes={hasVotes}
-          onUpdateStory={handleUpdateStory}
-          onReveal={handleReveal}
-          onReset={handleReset}
-        />
+        {/* Public room indicator */}
+        {isPublicRoom && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-4">
+            <Globe className="w-4 h-4" />
+            <span>Public Room</span>
+          </div>
+        )}
+
+        {/* Room Controls - only for admins when authenticated */}
+        {isAuthenticated && (
+          <RoomControls
+            roomName={room.name}
+            currentStory={room.currentStory}
+            isRevealed={room.isRevealed}
+            isHost={isAdmin}
+            hasVotes={hasVotes}
+            onUpdateStory={handleUpdateStory}
+            onReveal={handleReveal}
+            onReset={handleReset}
+            timerEndsAt={room.timerEndsAt}
+            timerStartedAt={room.timerStartedAt}
+            onStartTimer={handleStartTimer}
+            onStopTimer={handleStopTimer}
+          />
+        )}
+
+        {/* Read-only header for unauthenticated users */}
+        {isReadOnlyViewer && (
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold">{room.name}</h1>
+            {room.currentStory && (
+              <p className="text-muted-foreground mt-2">{room.currentStory}</p>
+            )}
+            {/* Show timer for read-only viewers if active */}
+            {room.timerEndsAt && room.timerStartedAt && (
+              <div className="mt-4 flex justify-center">
+                <VotingTimer
+                  timerEndsAt={room.timerEndsAt}
+                  timerStartedAt={room.timerStartedAt}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="mt-8 grid lg:grid-cols-[1fr_300px] gap-8">
           {/* Voting Area */}
-          <Card>
-            <CardContent className="pt-6">
-              <h2 className="text-lg font-semibold mb-6 text-center">
-                {room.isRevealed
-                  ? "Votes Revealed"
-                  : currentVote
-                    ? "You voted - waiting for others..."
-                    : "Cast Your Vote"}
-              </h2>
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                {/* Participant type toggle for authenticated users */}
+                {isAuthenticated && isParticipant && (
+                  <div className="flex justify-center mb-6">
+                    <ParticipantTypeToggle
+                      roomId={roomId as Id<"rooms">}
+                      currentType={participantType}
+                    />
+                  </div>
+                )}
 
-              <VotingCardGrid
-                selectedValue={currentVote?.value ?? null}
-                onSelect={handleVote}
-                isDisabled={room.isRevealed}
+                <h2 className="text-lg font-semibold mb-6 text-center">
+                  {isReadOnlyViewer
+                    ? "Viewing Session"
+                    : isObserver
+                      ? "Observing"
+                      : room.isRevealed
+                        ? "Votes Revealed"
+                        : currentVote
+                          ? "You voted - waiting for others..."
+                          : "Cast Your Vote"}
+                </h2>
+
+                {/* Sign in prompt for unauthenticated users */}
+                {isReadOnlyViewer && (
+                  <div className="text-center mb-6 p-4 bg-muted/50 rounded-lg">
+                    <p className="text-muted-foreground mb-3">
+                      Sign in to participate in voting
+                    </p>
+                    <SignInButton mode="modal">
+                      <Button size="sm">
+                        <LogIn className="w-4 h-4 mr-2" />
+                        Sign In to Vote
+                      </Button>
+                    </SignInButton>
+                  </div>
+                )}
+
+                <VotingCardGrid
+                  selectedValue={currentVote?.value ?? null}
+                  onSelect={handleVote}
+                  isDisabled={room.isRevealed || isReadOnlyViewer}
+                  isObserver={isObserver}
+                  pointScale={pointScale}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Admin Settings Panel */}
+            {isAuthenticated && isAdmin && (
+              <RoomSettings
+                roomId={roomId as Id<"rooms">}
+                currentVisibility={room.visibility ?? "private"}
+                currentPreset={room.pointScalePreset ?? "fibonacci"}
+                currentPointScale={pointScale}
+                currentTimerDuration={room.timerDurationSeconds ?? 180}
+                isAdmin={isAdmin}
               />
-
-              {/* Vote Summary (when revealed) */}
-              {room.isRevealed && votes && votes.length > 0 && (
-                <VoteSummary votes={votes} />
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </div>
 
           {/* Participants Sidebar */}
           <Card>
@@ -184,59 +305,14 @@ function RoomPage() {
               <ParticipantList
                 participants={participantsWithVotes}
                 isRevealed={room.isRevealed}
-                currentUserId={user.id}
+                currentUserId={user?.id}
                 hostId={room.hostId}
+                roomId={roomId as Id<"rooms">}
+                isCurrentUserAdmin={isAdmin}
+                votes={votes?.map((v) => ({ value: v.value, hasVoted: v.hasVoted }))}
               />
             </CardContent>
           </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface Vote {
-  value: string | null;
-  hasVoted: boolean;
-}
-
-function VoteSummary({ votes }: { votes: Vote[] }) {
-  const numericVotes = votes
-    .filter((v) => v.value && v.value !== "?")
-    .map((v) => parseInt(v.value!, 10));
-
-  if (numericVotes.length === 0) {
-    return null;
-  }
-
-  const average = numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length;
-  const sortedVotes = [...numericVotes].sort((a, b) => a - b);
-  const median =
-    sortedVotes.length % 2 === 0
-      ? (sortedVotes[sortedVotes.length / 2 - 1] +
-          sortedVotes[sortedVotes.length / 2]) /
-        2
-      : sortedVotes[Math.floor(sortedVotes.length / 2)];
-
-  const questionMarks = votes.filter((v) => v.value === "?").length;
-
-  return (
-    <div className="mt-8 pt-6 border-t">
-      <h3 className="text-sm font-medium text-muted-foreground mb-4">
-        Vote Summary
-      </h3>
-      <div className="grid grid-cols-3 gap-4 text-center">
-        <div>
-          <p className="text-2xl font-bold">{average.toFixed(1)}</p>
-          <p className="text-xs text-muted-foreground">Average</p>
-        </div>
-        <div>
-          <p className="text-2xl font-bold">{median}</p>
-          <p className="text-xs text-muted-foreground">Median</p>
-        </div>
-        <div>
-          <p className="text-2xl font-bold">{questionMarks}</p>
-          <p className="text-xs text-muted-foreground">Unsure (?)</p>
         </div>
       </div>
     </div>

@@ -1,25 +1,18 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-
-// Valid Fibonacci point values
-const VALID_VALUES = ["1", "2", "3", "5", "8", "13", "21", "?"];
+import { requireAuth, canViewRoomWithoutAuth, getEffectiveParticipantType } from "./permissions";
+import { getEffectivePointScale, isValidPointValue } from "./pointScales";
 
 // Cast or update a vote
+// REQUIRES AUTHENTICATION - this is the FIRST check
 export const cast = mutation({
   args: {
     roomId: v.id("rooms"),
     value: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Must be authenticated to vote");
-    }
-
-    // Validate the vote value
-    if (!VALID_VALUES.includes(args.value)) {
-      throw new Error(`Invalid vote value. Must be one of: ${VALID_VALUES.join(", ")}`);
-    }
+    // Authentication is required - FIRST CHECK
+    const identity = await requireAuth(ctx);
 
     // Check if room exists and votes aren't revealed
     const room = await ctx.db.get(args.roomId);
@@ -28,6 +21,14 @@ export const cast = mutation({
     }
     if (room.isRevealed) {
       throw new Error("Cannot vote after votes have been revealed");
+    }
+
+    // Get the effective point scale for this room
+    const pointScale = getEffectivePointScale(room.pointScale, room.pointScalePreset);
+
+    // Validate the vote value against the room's point scale
+    if (!isValidPointValue(args.value, pointScale)) {
+      throw new Error(`Invalid vote value. Must be one of: ${pointScale.join(", ")}`);
     }
 
     // Get the participant record
@@ -40,6 +41,12 @@ export const cast = mutation({
 
     if (!participant) {
       throw new Error("Must join the room before voting");
+    }
+
+    // Check that participant is a voter (not observer)
+    const participantType = getEffectiveParticipantType(participant);
+    if (participantType !== "voter") {
+      throw new Error("Observers cannot vote. Switch to voter mode to cast a vote.");
     }
 
     // Check for existing vote
@@ -71,6 +78,7 @@ export const cast = mutation({
 });
 
 // Get all votes for a room
+// Works for public rooms without auth (read-only)
 export const getByRoom = query({
   args: {
     roomId: v.id("rooms"),
@@ -79,6 +87,15 @@ export const getByRoom = query({
     const room = await ctx.db.get(args.roomId);
     if (!room) {
       return [];
+    }
+
+    // Check if user can view this room
+    if (!canViewRoomWithoutAuth(room)) {
+      // Private rooms require authentication
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        throw new Error("Authentication required to view this room");
+      }
     }
 
     const votes = await ctx.db

@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, RefreshCw, Copy, Check } from "lucide-react";
+import { Eye, RefreshCw, Copy, Check, Timer, TimerOff } from "lucide-react";
 import { useState } from "react";
+import { VotingTimer } from "./VotingTimer";
 
 interface RoomControlsProps {
   roomName: string;
@@ -12,6 +13,10 @@ interface RoomControlsProps {
   onUpdateStory: (story: string) => void;
   onReveal: () => void;
   onReset: () => void;
+  timerEndsAt?: number | null;
+  timerStartedAt?: number | null;
+  onStartTimer?: () => void;
+  onStopTimer?: () => void;
 }
 
 export function RoomControls({
@@ -23,6 +28,10 @@ export function RoomControls({
   onUpdateStory,
   onReveal,
   onReset,
+  timerEndsAt,
+  timerStartedAt,
+  onStartTimer,
+  onStopTimer,
 }: RoomControlsProps) {
   const [storyInput, setStoryInput] = useState(currentStory || "");
   const [copied, setCopied] = useState(false);
@@ -40,11 +49,13 @@ export function RoomControls({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isTimerRunning = timerEndsAt && timerStartedAt;
+
   return (
     <div className="space-y-4">
       {/* Room Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold">{roomName}</h1>
           {currentStory && (
             <p className="text-muted-foreground mt-1">
@@ -52,6 +63,15 @@ export function RoomControls({
             </p>
           )}
         </div>
+
+        {/* Timer Display */}
+        {isTimerRunning && (
+          <VotingTimer
+            timerEndsAt={timerEndsAt}
+            timerStartedAt={timerStartedAt}
+          />
+        )}
+
         <Button
           variant="outline"
           size="sm"
@@ -83,19 +103,44 @@ export function RoomControls({
               placeholder="Enter story/ticket to vote on..."
               className="flex-1"
             />
-            <Button type="submit" variant="secondary" disabled={!storyInput.trim()}>
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={!storyInput.trim()}
+            >
               Set Story
             </Button>
           </form>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {/* Timer Controls */}
+            {!isRevealed && (
+              <>
+                {isTimerRunning ? (
+                  <Button
+                    variant="outline"
+                    onClick={onStopTimer}
+                    className="gap-2"
+                  >
+                    <TimerOff className="w-4 h-4" />
+                    Stop Timer
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={onStartTimer}
+                    className="gap-2"
+                  >
+                    <Timer className="w-4 h-4" />
+                    Start Timer
+                  </Button>
+                )}
+              </>
+            )}
+
             {!isRevealed ? (
-              <Button
-                onClick={onReveal}
-                disabled={!hasVotes}
-                className="gap-2"
-              >
+              <Button onClick={onReveal} disabled={!hasVotes} className="gap-2">
                 <Eye className="w-4 h-4" />
                 Reveal Votes
               </Button>

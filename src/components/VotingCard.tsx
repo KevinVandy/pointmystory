@@ -23,7 +23,7 @@ export function VotingCard({
         isSelected
           ? "border-primary bg-primary text-primary-foreground shadow-md scale-105"
           : "border-border bg-card text-card-foreground hover:border-primary/50",
-        isDisabled && "opacity-50 cursor-not-allowed hover:scale-100"
+        isDisabled && "opacity-50 cursor-not-allowed hover:scale-100",
       )}
     >
       <span className="select-none">{value}</span>
@@ -48,29 +48,58 @@ export function VotingCard({
   );
 }
 
-// Fibonacci point values
-export const POINT_VALUES = ["1", "2", "3", "5", "8", "13", "21", "?"] as const;
+// Default Fibonacci point values (used as fallback)
+export const DEFAULT_POINT_VALUES = [
+  "1",
+  "2",
+  "3",
+  "5",
+  "8",
+  "13",
+  "21",
+  "?",
+] as const;
 
 interface VotingCardGridProps {
   selectedValue: string | null;
   onSelect: (value: string) => void;
   isDisabled?: boolean;
+  isObserver?: boolean;
+  pointScale?: string[];
 }
 
 export function VotingCardGrid({
   selectedValue,
   onSelect,
   isDisabled,
+  isObserver = false,
+  pointScale,
 }: VotingCardGridProps) {
+  // Use provided point scale or fall back to default
+  const values =
+    pointScale && pointScale.length > 0 ? pointScale : DEFAULT_POINT_VALUES;
+
+  // Observers cannot vote
+  const canVote = !isObserver && !isDisabled;
+
+  // If observer, only show the message, not the voting cards
+  if (isObserver) {
+    return (
+      <div className="text-center text-sm text-muted-foreground bg-muted/50 rounded-lg py-3 px-4">
+        You are observing. Switch to voter mode to cast a vote.
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap justify-center gap-4">
-      {POINT_VALUES.map((value) => (
+      {values.map((value) => (
         <VotingCard
           key={value}
           value={value}
           isSelected={selectedValue === value}
-          isDisabled={isDisabled}
-          onClick={() => onSelect(value)}
+          isDisabled={!canVote}
+          onClick={() => canVote && onSelect(value)}
         />
       ))}
     </div>
