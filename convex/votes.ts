@@ -19,13 +19,26 @@ export const cast = mutation({
     if (!room) {
       throw new Error("Room not found");
     }
-    if (room.isRevealed) {
-      throw new Error("Cannot vote after votes have been revealed");
+    
+    // Check if room is closed
+    const roomStatus = room.status ?? "open";
+    if (roomStatus === "closed") {
+      throw new Error("Cannot vote in a closed room");
     }
-
+    
     // Ensure there's a current round
     if (!room.currentRoundId) {
       throw new Error("No active round in this room");
+    }
+
+    // Check if the current round is revealed
+    const currentRound = await ctx.db.get(room.currentRoundId);
+    if (!currentRound) {
+      throw new Error("Current round not found");
+    }
+    
+    if (currentRound.isRevealed) {
+      throw new Error("Cannot vote after votes have been revealed");
     }
 
     // Get the effective point scale for this room
@@ -109,6 +122,10 @@ export const getByRoom = query({
       return [];
     }
 
+    // Get the current round to check if votes are revealed
+    const currentRound = await ctx.db.get(room.currentRoundId);
+    const isRevealed = currentRound?.isRevealed ?? false;
+
     // Get votes for the current round only
     const votes = await ctx.db
       .query("votes")
@@ -127,7 +144,7 @@ export const getByRoom = query({
           .unique()
       : null;
 
-    if (!room.isRevealed) {
+    if (!isRevealed) {
       return votes.map((vote) => ({
         ...vote,
         // Only show the value to the person who cast the vote

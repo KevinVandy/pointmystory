@@ -33,11 +33,11 @@ export const create = mutation({
       name: args.name,
       hostId: identity.subject,
       currentStory: undefined,
-      isRevealed: false,
       visibility: args.visibility ?? "private",
       pointScalePreset: preset,
       pointScale: pointScale,
       timerDurationSeconds: args.timerDurationSeconds ?? DEFAULT_TIMER_DURATION,
+      status: "open",
     });
 
     // Create the initial round for this room
@@ -181,10 +181,11 @@ export const reveal = mutation({
       throw new Error("Room not found");
     }
 
-    // Update room revealed state
-    await ctx.db.patch(args.roomId, {
-      isRevealed: true,
-    });
+    // Check if room is closed
+    const roomStatus = room.status ?? "open";
+    if (roomStatus === "closed") {
+      throw new Error("Cannot reveal votes in a closed room");
+    }
 
     // Update the current round with reveal info and stats
     if (room.currentRoundId) {
@@ -226,6 +227,12 @@ export const startNewRound = mutation({
       throw new Error("Room not found");
     }
 
+    // Check if room is closed
+    const roomStatus = room.status ?? "open";
+    if (roomStatus === "closed") {
+      throw new Error("Cannot start a new round in a closed room");
+    }
+
     // Create a new round
     const roundId = await ctx.db.insert("rounds", {
       roomId: args.roomId,
@@ -238,7 +245,6 @@ export const startNewRound = mutation({
     // Update room to point to the new round and reset state
     await ctx.db.patch(args.roomId, {
       currentRoundId: roundId,
-      isRevealed: false,
       currentStory: args.name || args.ticketNumber || undefined,
       timerStartedAt: undefined,
       timerEndsAt: undefined,
@@ -271,7 +277,6 @@ export const resetVotes = mutation({
     // Update room to point to the new round and reset state
     await ctx.db.patch(args.roomId, {
       currentRoundId: roundId,
-      isRevealed: false,
       currentStory: undefined,
       timerStartedAt: undefined,
       timerEndsAt: undefined,
@@ -293,6 +298,12 @@ export const startTimer = mutation({
     const room = await ctx.db.get(args.roomId);
     if (!room) {
       throw new Error("Room not found");
+    }
+
+    // Check if room is closed
+    const roomStatus = room.status ?? "open";
+    if (roomStatus === "closed") {
+      throw new Error("Cannot start timer in a closed room");
     }
 
     const duration = args.durationSeconds ?? room.timerDurationSeconds ?? DEFAULT_TIMER_DURATION;
@@ -323,5 +334,80 @@ export const stopTimer = mutation({
       timerStartedAt: undefined,
       timerEndsAt: undefined,
     });
+  },
+});
+
+// Close a room (admin only)
+export const closeRoom = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    await requireRoomAdmin(ctx, args.roomId);
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    await ctx.db.patch(args.roomId, {
+      status: "closed",
+    });
+  },
+});
+
+// Reopen a room (admin only)
+export const reopenRoom = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    await requireRoomAdmin(ctx, args.roomId);
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    await ctx.db.patch(args.roomId, {
+      status: "open",
+    });
+  },
+});
+
+// List all rooms the current user is a participant in
+export const listByUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+
+    // Get all participants for this user
+    const participants = await ctx.db
+      .query("participants")
+      .withIndex("by_user", (q) => q.eq("clerkUserId", identity.subject))
+      .collect();
+
+    // Get all rooms for these participants
+    const rooms = await Promise.all(
+      participants.map(async (participant) => {
+        const room = await ctx.db.get(participant.roomId);
+        if (!room) {
+          return null;
+        }
+        return {
+          ...room,
+          participantRole: participant.role ?? "team",
+          joinedAt: participant.joinedAt,
+        };
+      })
+    );
+
+    // Filter out nulls and sort by joinedAt (most recent first)
+    return rooms
+      .filter((room): room is NonNullable<typeof room> => room !== null)
+      .sort((a, b) => b.joinedAt - a.joinedAt);
   },
 });

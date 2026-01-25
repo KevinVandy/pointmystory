@@ -15,11 +15,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Users, Globe, Lock, Timer } from "lucide-react";
+
+const formatTimerDuration = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+};
 
 const PRESET_OPTIONS = [
   { value: "fibonacci", label: "Fibonacci (1, 2, 3, 5, 8, 13, 21, ?)" },
@@ -28,19 +35,11 @@ const PRESET_OPTIONS = [
   { value: "linear", label: "Linear (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)" },
 ];
 
-const TIMER_OPTIONS = [
-  { value: "60", label: "1 minute" },
-  { value: "120", label: "2 minutes" },
-  { value: "180", label: "3 minutes (default)" },
-  { value: "300", label: "5 minutes" },
-  { value: "600", label: "10 minutes" },
-];
-
 export function CreateRoomForm() {
   const [roomName, setRoomName] = useState("");
   const [pointScalePreset, setPointScalePreset] = useState("fibonacci");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
-  const [timerDuration, setTimerDuration] = useState("180");
+  const [timerDuration, setTimerDuration] = useState(180);
   const [isCreating, setIsCreating] = useState(false);
   const createRoom = useMutation(api.rooms.create);
   const navigate = useNavigate();
@@ -55,7 +54,7 @@ export function CreateRoomForm() {
         name: roomName.trim(),
         pointScalePreset,
         visibility,
-        timerDurationSeconds: parseInt(timerDuration, 10),
+        timerDurationSeconds: timerDuration,
       });
       navigate({ to: "/room/$roomId", params: { roomId } });
     } catch (error) {
@@ -111,27 +110,37 @@ export function CreateRoomForm() {
           </div>
 
           {/* Timer Duration */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1">
-              <Timer className="w-4 h-4" />
-              Default Timer Duration
-            </Label>
-            <Select
-              value={timerDuration}
-              onValueChange={setTimerDuration}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium flex items-center gap-1">
+                <Timer className="w-4 h-4" />
+                Default Timer Duration
+              </Label>
+              <span className="text-sm text-muted-foreground">
+                {formatTimerDuration(timerDuration)}
+              </span>
+            </div>
+            <Slider
+              min={15}
+              max={600}
+              step={15}
+              value={[timerDuration]}
+              onValueChange={(newValue) => {
+                const value =
+                  typeof newValue === "number"
+                    ? newValue
+                    : Array.isArray(newValue)
+                      ? newValue[0]
+                      : timerDuration;
+                setTimerDuration(value);
+              }}
               disabled={isCreating}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select timer duration" />
-              </SelectTrigger>
-              <SelectContent>
-                {TIMER_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{formatTimerDuration(15)}</span>
+              <span>{formatTimerDuration(600)}</span>
+            </div>
           </div>
 
           {/* Room Visibility */}

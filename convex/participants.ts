@@ -69,6 +69,12 @@ export const leave = mutation({
   handler: async (ctx, args) => {
     const identity = await requireAuth(ctx);
 
+    // Check if room exists
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
     // Find the participant
     const participant = await ctx.db
       .query("participants")
@@ -79,6 +85,12 @@ export const leave = mutation({
 
     if (!participant) {
       return; // Already not in the room
+    }
+
+    // Prevent admins from leaving - they must close the room instead
+    const role = getEffectiveRole(participant);
+    if (role === "admin") {
+      throw new Error("Admins cannot leave a room. Please close the room instead.");
     }
 
     // Delete their votes first

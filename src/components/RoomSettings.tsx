@@ -59,9 +59,14 @@ export function RoomSettings({
   const [customScale, setCustomScale] = useState(
     currentPreset === "custom" ? currentPointScale.join(", ") : "",
   );
-  const [timerDuration, setTimerDuration] = useState(
-    currentTimerDuration || 180,
-  );
+  const [timerDuration, setTimerDuration] = useState(() => {
+    const duration = currentTimerDuration || 180;
+    // Ensure duration is within valid range
+    if (duration < 15) return 15;
+    if (duration > 600) return 600;
+    // Round to nearest 15-second increment
+    return Math.round(duration / 15) * 15;
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   if (!isAdmin) {
@@ -177,7 +182,8 @@ export function RoomSettings({
 
   const formatTimerDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
-    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -201,9 +207,9 @@ export function RoomSettings({
             </span>
           </div>
           <Slider
-            min={60}
+            min={15}
             max={600}
-            step={30}
+            step={15}
             value={[timerDuration]}
             onValueChange={(newValue) => {
               // BaseUI slider passes the value directly as a number
@@ -218,8 +224,8 @@ export function RoomSettings({
             className="w-full"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>1 min</span>
-            <span>10 min</span>
+            <span>{formatTimerDuration(15)}</span>
+            <span>{formatTimerDuration(600)}</span>
           </div>
         </div>
 

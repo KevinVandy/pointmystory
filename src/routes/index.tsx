@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Zap, Eye } from "lucide-react";
+import { RejoinRoomAlert } from "@/components/RejoinRoomAlert";
+import { RoomMembershipTable } from "@/components/RoomMembershipTable";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -56,7 +58,10 @@ function Home() {
 
         {/* Main Action Area */}
         <SignedIn>
-          <CreateRoomForm />
+          <RoomMembershipTable />
+          <div className="mt-8">
+            <CreateRoomForm />
+          </div>
         </SignedIn>
 
         <SignedOut>

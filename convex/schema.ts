@@ -7,7 +7,6 @@ export default defineSchema({
     name: v.string(),
     hostId: v.string(), // Clerk user ID of the room creator
     currentStory: v.optional(v.string()), // Current story/ticket being voted on
-    isRevealed: v.boolean(), // Whether votes are revealed
     // Fields for visibility and point scales
     visibility: v.optional(v.union(v.literal("public"), v.literal("private"))), // Default: "private"
     pointScalePreset: v.optional(v.string()), // "fibonacci", "tshirt", "powers", "linear", "custom"
@@ -18,6 +17,8 @@ export default defineSchema({
     timerEndsAt: v.optional(v.number()), // Timestamp when timer expires
     // Current active round
     currentRoundId: v.optional(v.id("rounds")), // Active round being voted on
+    // Room status
+    status: v.optional(v.union(v.literal("open"), v.literal("closed"))), // Default: "open"
   }).index("by_host", ["hostId"]),
 
   // Rounds table - tracks each voting round within a room
@@ -49,7 +50,8 @@ export default defineSchema({
     participantType: v.optional(v.union(v.literal("voter"), v.literal("observer"))), // Default: "voter"
   })
     .index("by_room", ["roomId"])
-    .index("by_room_and_user", ["roomId", "clerkUserId"]),
+    .index("by_room_and_user", ["roomId", "clerkUserId"])
+    .index("by_user", ["clerkUserId"]),
 
   // Votes table - votes cast by participants
   votes: defineTable({

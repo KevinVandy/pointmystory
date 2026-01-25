@@ -11,9 +11,10 @@ import { RoomSettings } from "@/components/RoomSettings";
 import { ParticipantTypeToggle } from "@/components/ParticipantTypeToggle";
 import { VotingTimer } from "@/components/VotingTimer";
 import { RoundHistoryTable } from "@/components/RoundHistoryTable";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Globe, Lock, LogIn } from "lucide-react";
+import { Loader2, Globe, Lock, LogIn, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/room/$roomId")({
   component: RoomPage,
@@ -65,6 +66,8 @@ function RoomPage() {
   const participantType = currentParticipant?.participantType ?? "voter";
   const isAdmin = participantRole === "admin" || room?.hostId === user?.id;
   const isObserver = participantType === "observer";
+  const roomStatus = (room?.status ?? "open") as "open" | "closed";
+  const isClosed = roomStatus === "closed";
 
   // Point scale from room or default
   const pointScale =
@@ -195,6 +198,18 @@ function RoomPage() {
           </div>
         )}
 
+        {/* Closed Room Alert */}
+        {isClosed && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="w-4 h-4" />
+            <AlertTitle>Room Closed</AlertTitle>
+            <AlertDescription>
+              This room has been closed by the administrator. You can still view
+              the room but cannot vote or start new rounds.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Room Controls - only for admins when authenticated */}
         {isAuthenticated && (
           <RoomControls
@@ -203,7 +218,7 @@ function RoomPage() {
             currentStory={room.currentStory}
             currentRoundName={currentRound?.name}
             currentTicketNumber={currentRound?.ticketNumber}
-            isRevealed={room.isRevealed}
+            isRevealed={currentRound?.isRevealed ?? false}
             isHost={isAdmin}
             hasVotes={hasVotes}
             onUpdateStory={handleUpdateStory}
@@ -212,6 +227,8 @@ function RoomPage() {
             timerStartedAt={room.timerStartedAt}
             onStartTimer={handleStartTimer}
             onStopTimer={handleStopTimer}
+            roomStatus={roomStatus}
+            isAdmin={isAdmin}
           />
         )}
 
@@ -255,7 +272,7 @@ function RoomPage() {
                     ? "Viewing Session"
                     : isObserver
                       ? "Observing"
-                      : room.isRevealed
+                      : (currentRound?.isRevealed ?? false)
                         ? "Votes Revealed"
                         : currentVote
                           ? "You voted - waiting for others..."
@@ -280,7 +297,7 @@ function RoomPage() {
                 <VotingCardGrid
                   selectedValue={currentVote?.value ?? null}
                   onSelect={handleVote}
-                  isDisabled={room.isRevealed || isReadOnlyViewer}
+                  isDisabled={(currentRound?.isRevealed ?? false) || isReadOnlyViewer || isClosed}
                   isObserver={isObserver}
                   pointScale={pointScale}
                 />
@@ -312,7 +329,7 @@ function RoomPage() {
             <CardContent className="pt-6">
               <ParticipantList
                 participants={participantsWithVotes}
-                isRevealed={room.isRevealed}
+                isRevealed={currentRound?.isRevealed ?? false}
                 currentUserId={user?.id}
                 hostId={room.hostId}
                 roomId={roomId as Id<"rooms">}
