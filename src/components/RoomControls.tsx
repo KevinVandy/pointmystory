@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Eye, Share2, Timer, TimerOff, LogOut, Lock, Unlock, FileText } from "lucide-react";
-import { VotingTimer } from "./VotingTimer";
-import { NewRoundDialog } from "./NewRoundDialog";
+import { Share2, LogOut, Lock, Unlock } from "lucide-react";
 import type { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "@tanstack/react-router";
+import { ParticipantTypeToggle } from "./ParticipantTypeToggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,40 +26,35 @@ interface RoomControlsProps {
   currentTicketNumber?: string;
   isRevealed: boolean;
   isHost: boolean;
-  hasVotes: boolean;
-  onReveal: () => void;
-  timerEndsAt?: number | null;
-  timerStartedAt?: number | null;
-  onStartTimer?: () => void;
-  onStopTimer?: () => void;
   roomStatus?: "open" | "closed";
   isAdmin?: boolean;
+  isDemoRoom?: boolean;
+  isAuthenticated?: boolean;
+  demoSessionId?: string;
+  isParticipant?: boolean;
+  participantType?: "voter" | "observer";
 }
 
 export function RoomControls({
   roomId,
   roomName,
   currentStory,
-  currentRoundName,
-  currentTicketNumber,
-  isRevealed,
+  currentRoundName: _currentRoundName,
+  currentTicketNumber: _currentTicketNumber,
+  isRevealed: _isRevealed,
   isHost,
-  hasVotes,
-  onReveal,
-  timerEndsAt,
-  timerStartedAt,
-  onStartTimer,
-  onStopTimer,
   roomStatus = "open",
   isAdmin = false,
+  isDemoRoom = false,
+  isAuthenticated = false,
+  demoSessionId,
+  isParticipant = false,
+  participantType,
 }: RoomControlsProps) {
   const navigate = useNavigate();
   const leaveRoom = useMutation(api.participants.leave);
   const closeRoom = useMutation(api.rooms.closeRoom);
   const reopenRoom = useMutation(api.rooms.reopenRoom);
-
-  // Display the current round info
-  const displayStory = currentStory || currentRoundName || currentTicketNumber;
 
   const copyRoomLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -79,7 +73,7 @@ export function RoomControls({
 
   const handleCloseRoom = async () => {
     try {
-      await closeRoom({ roomId });
+      await closeRoom({ roomId, demoSessionId });
       toast.success("Room closed");
     } catch (error: any) {
       toast.error(error.message || "Failed to close room");
@@ -88,43 +82,33 @@ export function RoomControls({
 
   const handleReopenRoom = async () => {
     try {
-      await reopenRoom({ roomId });
+      await reopenRoom({ roomId, demoSessionId });
       toast.success("Room reopened");
     } catch (error: any) {
       toast.error(error.message || "Failed to reopen room");
     }
   };
 
-  const isTimerRunning = timerEndsAt && timerStartedAt;
   const isClosed = roomStatus === "closed";
 
   return (
     <div className="space-y-4">
       {/* Room Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
+        {/* Room name - left */}
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold">{roomName}</h1>
-          {displayStory && (
-            <p className="text-muted-foreground mt-1">
-              Voting on: <span className="font-medium">{displayStory}</span>
-              {currentTicketNumber && currentTicketNumber !== displayStory && (
-                <span className="ml-2 font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                  {currentTicketNumber}
-                </span>
-              )}
-            </p>
+        </div>
+
+        {/* Participant type toggle - center */}
+        <div className="flex items-center justify-center flex-1">
+          {isAuthenticated && isParticipant && participantType && (
+            <ParticipantTypeToggle roomId={roomId} currentType={participantType} />
           )}
         </div>
 
-        {/* Timer Display */}
-        {isTimerRunning && (
-          <VotingTimer
-            timerEndsAt={timerEndsAt}
-            timerStartedAt={timerStartedAt}
-          />
-        )}
-
-        <div className="flex gap-2">
+        {/* Action buttons - right */}
+        <div className="flex gap-2 flex-1 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -148,15 +132,18 @@ export function RoomControls({
           {isAdmin && (
             <>
               {isClosed ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleReopenRoom}
-                  className="gap-2"
-                >
-                  <Unlock className="w-4 h-4" />
-                  Reopen Room
-                </Button>
+                // Hide reopen button for demo rooms when user is not signed in
+                !(isDemoRoom && !isAuthenticated) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleReopenRoom}
+                    className="gap-2"
+                  >
+                    <Unlock className="w-4 h-4" />
+                    Reopen Room
+                  </Button>
+                )
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger
@@ -193,64 +180,6 @@ export function RoomControls({
           )}
         </div>
       </div>
-
-      {/* Host Controls */}
-      {isHost && !isClosed && (
-        <div className="flex gap-2 flex-wrap">
-          {/* Set Story Button - only show before votes are revealed */}
-          {!isRevealed && (
-            <NewRoundDialog
-              roomId={roomId}
-              mode="setStory"
-              initialName={currentRoundName || currentStory}
-              initialTicketNumber={currentTicketNumber}
-              trigger={
-                <Button variant="outline" className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  Set Story
-                </Button>
-              }
-              onStoryUpdated={() => {
-                // Story will be updated via the mutation, no need for callback
-              }}
-            />
-          )}
-
-          {/* Timer Controls */}
-          {!isRevealed && (
-            <>
-              {isTimerRunning ? (
-                <Button
-                  variant="outline"
-                  onClick={onStopTimer}
-                  className="gap-2"
-                >
-                  <TimerOff className="w-4 h-4" />
-                  Stop Timer
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={onStartTimer}
-                  className="gap-2"
-                >
-                  <Timer className="w-4 h-4" />
-                  Start Timer
-                </Button>
-              )}
-            </>
-          )}
-
-          {!isRevealed ? (
-            <Button onClick={onReveal} disabled={!hasVotes} className="gap-2">
-              <Eye className="w-4 h-4" />
-              Reveal Votes
-            </Button>
-          ) : (
-            <NewRoundDialog roomId={roomId} />
-          )}
-        </div>
-      )}
 
       {/* Non-host message */}
       {!isHost && !currentStory && (

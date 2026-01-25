@@ -98,6 +98,7 @@ export const cast = mutation({
 
 // Get all votes for the current round in a room
 // Works for public rooms without auth (read-only)
+// Returns status to distinguish between "not found" and "access denied"
 export const getByRoom = query({
   args: {
     roomId: v.id("rooms"),
@@ -105,7 +106,7 @@ export const getByRoom = query({
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) {
-      return [];
+      return { status: "not_found" as const, votes: [] };
     }
 
     // Check if user can view this room
@@ -113,13 +114,13 @@ export const getByRoom = query({
       // Private rooms require authentication
       const identity = await ctx.auth.getUserIdentity();
       if (!identity) {
-        throw new Error("Authentication required to view this room");
+        return { status: "access_denied" as const, votes: [] };
       }
     }
 
     // If no current round, return empty
     if (!room.currentRoundId) {
-      return [];
+      return { status: "ok" as const, votes: [] };
     }
 
     // Get the current round to check if votes are revealed
@@ -144,22 +145,22 @@ export const getByRoom = query({
           .unique()
       : null;
 
-    if (!isRevealed) {
-      return votes.map((vote) => ({
-        ...vote,
-        // Only show the value to the person who cast the vote
-        value:
-          currentParticipant && vote.participantId === currentParticipant._id
-            ? vote.value
-            : null,
-        hasVoted: true,
-      }));
-    }
+    const processedVotes = !isRevealed
+      ? votes.map((vote) => ({
+          ...vote,
+          // Only show the value to the person who cast the vote
+          value:
+            currentParticipant && vote.participantId === currentParticipant._id
+              ? vote.value
+              : null,
+          hasVoted: true,
+        }))
+      : votes.map((vote) => ({
+          ...vote,
+          hasVoted: true,
+        }));
 
-    return votes.map((vote) => ({
-      ...vote,
-      hasVoted: true,
-    }));
+    return { status: "ok" as const, votes: processedVotes };
   },
 });
 

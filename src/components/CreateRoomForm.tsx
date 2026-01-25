@@ -29,10 +29,11 @@ const formatTimerDuration = (seconds: number) => {
 };
 
 const PRESET_OPTIONS = [
-  { value: "fibonacci", label: "Fibonacci (1, 2, 3, 5, 8, 13, 21, ?)" },
+  { value: "fibonacci", label: "Fibonacci (0.5, 1, 2, 3, 5, 8, 13, 21, ?)" },
   { value: "tshirt", label: "T-Shirt Sizes (XS, S, M, L, XL, ?)" },
-  { value: "powers", label: "Powers of 2 (1, 2, 4, 8, 16, 32, ?)" },
-  { value: "linear", label: "Linear (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)" },
+  { value: "powers", label: "Powers of 2 (0.5, 1, 2, 4, 8, 16, 32, ?)" },
+  { value: "linear", label: "Linear (0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ?)" },
+  { value: "hybrid", label: "Hybrid (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)" },
 ];
 
 export function CreateRoomForm() {

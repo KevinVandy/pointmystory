@@ -156,15 +156,19 @@ export const updateParticipantType = mutation({
       participantType: args.participantType,
     });
 
-    // If switching to observer, delete their current vote
+    // If switching to observer, delete only their current round vote (not historical votes)
     if (args.participantType === "observer") {
-      const votes = await ctx.db
-        .query("votes")
-        .withIndex("by_participant", (q) => q.eq("participantId", participant._id))
-        .collect();
+      const room = await ctx.db.get(args.roomId);
+      if (room && room.currentRoundId) {
+        const currentVote = await ctx.db
+          .query("votes")
+          .withIndex("by_round", (q) => q.eq("roundId", room.currentRoundId!))
+          .filter((q) => q.eq(q.field("participantId"), participant._id))
+          .unique();
 
-      for (const vote of votes) {
-        await ctx.db.delete(vote._id);
+        if (currentVote) {
+          await ctx.db.delete(currentVote._id);
+        }
       }
     }
   },
@@ -172,6 +176,7 @@ export const updateParticipantType = mutation({
 
 // List all participants in a room
 // Works without auth for public rooms (read-only)
+// Returns status to distinguish between "not found" and "access denied"
 export const listByRoom = query({
   args: {
     roomId: v.id("rooms"),
@@ -179,7 +184,7 @@ export const listByRoom = query({
   handler: async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) {
-      return [];
+      return { status: "not_found" as const, participants: [] };
     }
 
     // Public rooms can be viewed by anyone
@@ -187,14 +192,16 @@ export const listByRoom = query({
       // Private rooms require authentication
       const identity = await ctx.auth.getUserIdentity();
       if (!identity) {
-        throw new Error("Authentication required to view this room");
+        return { status: "access_denied" as const, participants: [] };
       }
     }
 
-    return await ctx.db
+    const participants = await ctx.db
       .query("participants")
       .withIndex("by_room", (q) => q.eq("roomId", args.roomId))
       .collect();
+
+    return { status: "ok" as const, participants };
   },
 });
 

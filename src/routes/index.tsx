@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CreateRoomForm } from "@/components/CreateRoomForm";
 import {
   SignedIn,
@@ -14,8 +14,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Zap, Eye, Timer, BarChart3, Settings, Globe, History } from "lucide-react";
+import {
+  Users,
+  Zap,
+  Eye,
+  Timer,
+  BarChart3,
+  Settings,
+  Globe,
+  History,
+  Play,
+} from "lucide-react";
 import { RoomMembershipTable } from "@/components/RoomMembershipTable";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useState } from "react";
+import { toast } from "sonner";
+import { setDemoSessionId } from "@/lib/demoSession";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -61,7 +76,7 @@ function Home() {
             <FeatureCard
               icon={<BarChart3 className="w-6 h-6" />}
               title="Multiple Point Scales"
-              description="Choose from Fibonacci, T-shirt sizes, Powers of 2, Linear, or create custom scales"
+              description="Choose from Fibonacci, T-shirt sizes, Powers of 2, Hybrid, Linear, or create custom scales"
             />
             <FeatureCard
               icon={<Timer className="w-6 h-6" />}
@@ -96,27 +111,62 @@ function Home() {
           </div>
 
           {/* Sign In Card */}
-          <Card className="w-full max-w-md mx-auto">
-            <CardHeader className="text-center">
-              <CardTitle>Get Started</CardTitle>
-              <CardDescription>
-                Sign in to create or join a planning poker room
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <SignInButton mode="modal">
-                <Button className="w-full">Sign In</Button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <Button variant="outline" className="w-full">
-                  Create Account
-                </Button>
-              </SignUpButton>
-            </CardContent>
-          </Card>
+          <GetStartedCard />
         </SignedOut>
       </div>
     </div>
+  );
+}
+
+function GetStartedCard() {
+  const navigate = useNavigate();
+  const createDemo = useMutation(api.rooms.createDemo);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleTryDemo = async () => {
+    setIsCreating(true);
+    try {
+      const result = await createDemo({});
+      // Store demoSessionId in localStorage
+      if (result.demoSessionId) {
+        setDemoSessionId(result.roomId, result.demoSessionId);
+      }
+      navigate({ to: "/room/$roomId", params: { roomId: result.roomId } });
+    } catch (error: any) {
+      console.error("Failed to create demo room:", error);
+      toast.error(error.message || "Failed to create demo room");
+      setIsCreating(false);
+    }
+  };
+
+  return (
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader className="text-center">
+        <CardTitle>Get Started</CardTitle>
+        <CardDescription>
+          Sign in to create or join a planning poker room
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <SignInButton mode="modal">
+          <Button className="w-full">Sign In</Button>
+        </SignInButton>
+        <SignUpButton mode="modal">
+          <Button variant="outline" className="w-full">
+            Create Account
+          </Button>
+        </SignUpButton>
+        <Button
+          variant="ghost"
+          className="w-full"
+          onClick={handleTryDemo}
+          disabled={isCreating}
+        >
+          <Play className="w-4 h-4 mr-2" />
+          {isCreating ? "Creating Demo..." : "Try Demo"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

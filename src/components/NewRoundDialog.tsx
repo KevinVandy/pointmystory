@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as React from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { RefreshCw, Ticket, FileText } from "lucide-react";
 
 interface NewRoundDialogProps {
@@ -22,8 +24,9 @@ interface NewRoundDialogProps {
   mode?: "newRound" | "setStory";
   initialName?: string;
   initialTicketNumber?: string;
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
   onStoryUpdated?: () => void;
+  demoSessionId?: string;
 }
 
 export function NewRoundDialog({
@@ -33,6 +36,7 @@ export function NewRoundDialog({
   initialTicketNumber,
   trigger,
   onStoryUpdated,
+  demoSessionId,
 }: NewRoundDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -56,12 +60,13 @@ export function NewRoundDialog({
       if (mode === "setStory") {
         // For setStory mode, use name as story (or ticketNumber if name is empty)
         const storyText = name.trim() || ticketNumber.trim() || "";
-        
+
         if (storyText) {
           await updateStory({
             roomId,
             story: storyText,
             ticketNumber: ticketNumber.trim() || undefined,
+            demoSessionId,
           });
           onStoryUpdated?.();
         }
@@ -71,6 +76,7 @@ export function NewRoundDialog({
           roomId,
           name: name.trim() || undefined,
           ticketNumber: ticketNumber.trim() || undefined,
+          demoSessionId,
         });
       }
       setOpen(false);
@@ -93,9 +99,19 @@ export function NewRoundDialog({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       {trigger ? (
-        <AlertDialogTrigger>{trigger}</AlertDialogTrigger>
+        <AlertDialogTrigger
+          render={(props) => {
+            // Extract props from the trigger Button and merge with AlertDialogTrigger props
+            // This avoids nested buttons by rendering a single Button with merged props
+            return (
+              <Button {...trigger.props} {...props}>
+                {trigger.props.children}
+              </Button>
+            );
+          }}
+        />
       ) : (
-        <AlertDialogTrigger className="focus-visible:border-ring focus-visible:ring-ring/50 inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 [&_svg]:pointer-events-none [&_svg]:shrink-0">
+        <AlertDialogTrigger className="cursor-pointer focus-visible:border-ring focus-visible:ring-ring/50 inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 [&_svg]:pointer-events-none [&_svg]:shrink-0">
           <RefreshCw className="w-4 h-4" />
           New Round
         </AlertDialogTrigger>

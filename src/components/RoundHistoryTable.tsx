@@ -19,7 +19,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -49,6 +48,8 @@ interface RoundHistoryTableProps {
   isAdmin: boolean;
   currentRoundId?: Id<"rounds">;
   pointScalePreset?: string;
+  pointScale?: string[];
+  demoSessionId?: string;
 }
 
 // Mapping for t-shirt sizes to numeric values
@@ -78,7 +79,7 @@ function numberToTShirtSize(num: number): string {
   const tshirtValues = Object.values(TSHIRT_SIZE_MAP).sort((a, b) => a - b);
   let closest = tshirtValues[0];
   let minDiff = Math.abs(num - closest);
-  
+
   for (const val of tshirtValues) {
     const diff = Math.abs(num - val);
     if (diff < minDiff) {
@@ -86,8 +87,61 @@ function numberToTShirtSize(num: number): string {
       closest = val;
     }
   }
-  
+
   return NUMBER_TO_TSHIRT[closest] || num.toFixed(1);
+}
+
+/**
+ * Round a number to the nearest value in the point scale.
+ * Handles numeric values and t-shirt sizes.
+ */
+function roundToNearestPointScale(
+  num: number | undefined | null,
+  pointScale: string[] | undefined,
+  pointScalePreset?: string,
+): string | null {
+  if (
+    num === undefined ||
+    num === null ||
+    !pointScale ||
+    pointScale.length === 0
+  ) {
+    return null;
+  }
+
+  const isTShirtScale = pointScalePreset === "tshirt";
+
+  // For t-shirt sizes, convert number to nearest t-shirt size
+  if (isTShirtScale) {
+    return numberToTShirtSize(num);
+  }
+
+  // For numeric scales, find the closest numeric value
+  const numericValues = pointScale
+    .filter((v) => v !== "?")
+    .map((v) => parseFloat(v))
+    .filter((v) => !isNaN(v))
+    .sort((a, b) => a - b);
+
+  if (numericValues.length === 0) {
+    return null;
+  }
+
+  // Find the closest numeric value
+  let closest = numericValues[0];
+  let minDiff = Math.abs(num - closest);
+
+  for (const val of numericValues) {
+    const diff = Math.abs(num - val);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = val;
+    }
+  }
+
+  // Return as string, matching the format in point scale (e.g., "8" not "8.0")
+  const closestStr = closest.toString();
+  return pointScale.includes(closestStr) ? closestStr : closest.toFixed(1);
 }
 
 export function RoundHistoryTable({
@@ -95,6 +149,8 @@ export function RoundHistoryTable({
   isAdmin,
   currentRoundId,
   pointScalePreset,
+  pointScale,
+  demoSessionId,
 }: RoundHistoryTableProps) {
   const rounds = useQuery(api.rounds.listByRoom, { roomId });
 
@@ -154,7 +210,13 @@ export function RoundHistoryTable({
         accessorKey: "finalScore",
         header: "Final",
         cell: ({ row }) => (
-          <EditableFinalScore round={row.original} isAdmin={isAdmin} />
+          <EditableFinalScore
+            round={row.original}
+            isAdmin={isAdmin}
+            demoSessionId={demoSessionId}
+            pointScalePreset={pointScalePreset}
+            pointScale={pointScale}
+          />
         ),
       },
       {
@@ -209,7 +271,7 @@ export function RoundHistoryTable({
         },
       },
     ],
-    [isAdmin, pointScalePreset],
+    [isAdmin, pointScalePreset, pointScale, demoSessionId],
   );
 
   const table = useReactTable({
@@ -221,10 +283,6 @@ export function RoundHistoryTable({
   });
 
   if (!rounds) {
-    return null;
-  }
-
-  if (completedRounds.length === 0) {
     return null;
   }
 
@@ -253,27 +311,38 @@ export function RoundHistoryTable({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <React.Fragment key={row.id}>
-                  <TableRow data-state={row.getIsExpanded() && "expanded"}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-2">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                  {row.getIsExpanded() && (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="p-0">
-                        <RoundVoteDetails roundId={row.original._id} />
-                      </TableCell>
+              table.getRowModel().rows.map((row) => {
+                const isCurrentRound = currentRoundId
+                  ? row.original._id === currentRoundId
+                  : false;
+                return (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      data-state={row.getIsExpanded() && "expanded"}
+                      className={cn(isCurrentRound && "font-bold")}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={cn("py-2", isCurrentRound && "font-bold")}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  )}
-                </React.Fragment>
-              ))
+                    {row.getIsExpanded() && (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="p-0">
+                          <RoundVoteDetails roundId={row.original._id} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
@@ -295,25 +364,44 @@ export function RoundHistoryTable({
 function EditableFinalScore({
   round,
   isAdmin,
+  demoSessionId,
+  pointScalePreset,
+  pointScale,
 }: {
   round: Round;
   isAdmin: boolean;
+  demoSessionId?: string;
+  pointScalePreset?: string;
+  pointScale?: string[];
 }) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(round.finalScore || "");
   const setFinalScore = useMutation(api.rounds.setFinalScore);
+
+  // Calculate default value from average or median score
+  const defaultScore = React.useMemo(() => {
+    if (!pointScale || pointScale.length === 0) return null;
+    const scoreToUse = round.averageScore ?? round.medianScore;
+    return roundToNearestPointScale(scoreToUse, pointScale, pointScalePreset);
+  }, [round.averageScore, round.medianScore, pointScale, pointScalePreset]);
+
+  // Use finalScore if set, otherwise use default
+  const displayValue = round.finalScore || defaultScore || "-";
+  const [value, setValue] = useState((round.finalScore || defaultScore || "").toString());
 
   // Update local value when round changes
   React.useEffect(() => {
-    setValue(round.finalScore || "");
-  }, [round.finalScore]);
+    setValue((round.finalScore || defaultScore || "").toString());
+  }, [round.finalScore, defaultScore]);
 
-  const handleSave = async () => {
-    if (value.trim()) {
+  const handleSave = async (scoreValue?: string) => {
+    // Use provided value, trimmed value, or default
+    const finalValue = (scoreValue || value.trim() || (defaultScore || "").toString()).toString();
+    if (finalValue) {
       try {
         await setFinalScore({
           roundId: round._id,
-          finalScore: value.trim(),
+          finalScore: finalValue,
+          demoSessionId,
         });
         setOpen(false);
       } catch (error) {
@@ -325,7 +413,7 @@ function EditableFinalScore({
   };
 
   const handleCancel = () => {
-    setValue(round.finalScore || "");
+    setValue((round.finalScore || defaultScore || "").toString());
     setOpen(false);
   };
 
@@ -337,7 +425,7 @@ function EditableFinalScore({
           round.finalScore ? "text-primary" : "text-muted-foreground",
         )}
       >
-        {round.finalScore || "-"}
+        {displayValue}
       </span>
       {isAdmin && (
         <Popover open={open} onOpenChange={setOpen}>
@@ -346,25 +434,34 @@ function EditableFinalScore({
           </PopoverTrigger>
           <PopoverContent className="w-64" align="end">
             <div className="space-y-3">
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <label className="text-xs font-medium">Final Score</label>
-                <Input
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder="Enter score"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSave();
-                    if (e.key === "Escape") handleCancel();
-                  }}
-                />
+                <div className="flex flex-wrap gap-2">
+                  {pointScale && pointScale.length > 0 ? (
+                    pointScale.map((scaleValue) => (
+                      <Button
+                        key={scaleValue}
+                        variant={value === scaleValue ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setValue(scaleValue);
+                          handleSave(scaleValue);
+                        }}
+                        className="min-w-12"
+                      >
+                        {scaleValue}
+                      </Button>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No point scale available
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={handleCancel}>
                   Cancel
-                </Button>
-                <Button size="sm" onClick={handleSave}>
-                  Save
                 </Button>
               </div>
             </div>

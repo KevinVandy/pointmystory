@@ -141,7 +141,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <>
       <Header />
       <RejoinRoomAlert />
-      {children}
+      <main className="pb-64">{children}</main>
       <Toaster position="bottom-right" />
       {/* <TanStackDevtools
         config={{

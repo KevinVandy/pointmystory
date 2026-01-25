@@ -41,24 +41,47 @@ export function canViewRoomWithoutAuth(
 }
 
 /**
+ * Check if a demoSessionId matches the room's demoSessionId.
+ * Used for demo room admin verification.
+ */
+export function isDemoRoomAdmin(
+  room: { isDemo?: boolean | null; demoSessionId?: string | null },
+  demoSessionId: string | null | undefined
+): boolean {
+  if (!room.isDemo || !demoSessionId) {
+    return false;
+  }
+  return room.demoSessionId === demoSessionId;
+}
+
+/**
  * Check if the current user is an admin of the room.
  * Returns false if not authenticated or not a participant.
+ * Also checks demo room admin status if demoSessionId is provided.
  */
 export async function isRoomAdmin(
   ctx: Context,
-  roomId: Id<"rooms">
+  roomId: Id<"rooms">,
+  demoSessionId?: string | null
 ): Promise<boolean> {
+  const room = await ctx.db.get(roomId);
+  if (!room) {
+    return false;
+  }
+
+  // Check demo room admin status first (doesn't require auth)
+  if (room.isDemo && demoSessionId) {
+    if (isDemoRoomAdmin(room, demoSessionId)) {
+      return true;
+    }
+  }
+
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
     return false;
   }
 
   // Check if user is the host (original creator)
-  const room = await ctx.db.get(roomId);
-  if (!room) {
-    return false;
-  }
-
   if (room.hostId === identity.subject) {
     return true;
   }
@@ -77,17 +100,31 @@ export async function isRoomAdmin(
 /**
  * Require that the current user is an admin of the room.
  * Throws an error if not authenticated or not an admin.
+ * Also checks demo room admin status if demoSessionId is provided.
  */
 export async function requireRoomAdmin(
   ctx: Context,
-  roomId: Id<"rooms">
+  roomId: Id<"rooms">,
+  demoSessionId?: string | null
 ): Promise<void> {
+  const room = await ctx.db.get(roomId);
+  if (!room) {
+    throw new Error("Room not found");
+  }
+
+  // Check demo room admin status first (doesn't require auth)
+  if (room.isDemo && demoSessionId) {
+    if (isDemoRoomAdmin(room, demoSessionId)) {
+      return; // Demo room admin is valid
+    }
+  }
+
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
     throw new Error("Authentication required");
   }
 
-  const isAdmin = await isRoomAdmin(ctx, roomId);
+  const isAdmin = await isRoomAdmin(ctx, roomId, demoSessionId);
   if (!isAdmin) {
     throw new Error("Admin permission required");
   }

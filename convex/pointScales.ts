@@ -1,19 +1,21 @@
 // Point scale presets for planning poker
 
 export const POINT_SCALE_PRESETS = {
-  fibonacci: ["1", "2", "3", "5", "8", "13", "21", "?"],
+  fibonacci: ["0.5", "1", "2", "3", "5", "8", "13", "21", "?"],
   tshirt: ["XS", "S", "M", "L", "XL", "?"],
-  powers: ["1", "2", "4", "8", "16", "32", "?"],
-  linear: ["0.5", "1", "2", "4", "6", "8", "12", "16", "24", "?"],
+  powers: ["0.5", "1", "2", "4", "8", "16", "32", "?"],
+  hybrid: ["0.5", "1", "2", "4", "6", "8", "12", "16", "24", "?"],
+  linear: ["0.5", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "?"],
 } as const;
 
 export type PointScalePreset = keyof typeof POINT_SCALE_PRESETS | "custom";
 
 export const PRESET_LABELS: Record<PointScalePreset, string> = {
-  fibonacci: "Fibonacci (1, 2, 3, 5, 8, 13, 21, ?)",
+  fibonacci: "Fibonacci (0.5, 1, 2, 3, 5, 8, 13, 21, ?)",
   tshirt: "T-Shirt Sizes (XS, S, M, L, XL, ?)",
-  powers: "Powers of 2 (1, 2, 4, 8, 16, 32, ?)",
-  linear: "Linear (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)",
+  powers: "Powers of 2 (0.5, 1, 2, 4, 8, 16, 32, ?)",
+  hybrid: "Hybrid (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)",
+  linear: "Linear (0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ?)",
   custom: "Custom",
 };
 

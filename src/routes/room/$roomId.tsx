@@ -2,19 +2,27 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUser, SignInButton } from "@clerk/tanstack-react-start";
-import { VotingCardGrid, DEFAULT_POINT_VALUES } from "@/components/VotingCard";
+import { DEFAULT_POINT_VALUES } from "@/components/VotingChoiceButton";
+import { VotingCard } from "@/components/VotingCard";
 import { ParticipantList } from "@/components/ParticipantList";
 import { RoomControls } from "@/components/RoomControls";
 import { RoomSettings } from "@/components/RoomSettings";
-import { ParticipantTypeToggle } from "@/components/ParticipantTypeToggle";
 import { VotingTimer } from "@/components/VotingTimer";
 import { RoundHistoryTable } from "@/components/RoundHistoryTable";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Globe, Lock, LogIn, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  Globe,
+  Lock,
+  LogIn,
+  AlertCircle,
+  Clock,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getDemoSessionId } from "@/lib/demoSession";
 
 export const Route = createFileRoute("/room/$roomId")({
   component: RoomPage,
@@ -25,16 +33,26 @@ function RoomPage() {
   const navigate = useNavigate();
   const { user, isLoaded: userLoaded } = useUser();
 
+  // Get demo session ID from localStorage
+  const [demoSessionId] = useState<string | null>(() =>
+    getDemoSessionId(roomId),
+  );
+
   // Convex queries
   const roomResult = useQuery(api.rooms.get, {
     roomId: roomId as Id<"rooms">,
   });
-  const participants = useQuery(api.participants.listByRoom, {
+  const participantsResult = useQuery(api.participants.listByRoom, {
     roomId: roomId as Id<"rooms">,
   });
-  const votes = useQuery(api.votes.getByRoom, {
+  const votesResult = useQuery(api.votes.getByRoom, {
     roomId: roomId as Id<"rooms">,
   });
+
+  // Extract data from result objects
+  const participants =
+    participantsResult?.status === "ok" ? participantsResult.participants : [];
+  const votes = votesResult?.status === "ok" ? votesResult.votes : [];
   const currentVote = useQuery(api.votes.getCurrentVote, {
     roomId: roomId as Id<"rooms">,
   });
@@ -59,14 +77,35 @@ function RoomPage() {
   const isPublicRoom = (room?.visibility ?? "private") === "public";
   const isAuthenticated = !!user;
   const isParticipant = currentParticipant !== null;
+  const isDemoRoom = room?.isDemo ?? false;
+
+  // Check if user is demo room admin (has valid demoSessionId)
+  const isDemoRoomAdmin = isDemoRoom && demoSessionId === room?.demoSessionId;
 
   // Role and type - default for new/missing fields
   const participantRole = currentParticipant?.role ?? "team";
   const participantType = currentParticipant?.participantType ?? "voter";
-  const isAdmin = participantRole === "admin" || room?.hostId === user?.id;
+  // Admin status: regular admin OR demo room admin
+  const isAdmin =
+    participantRole === "admin" || room?.hostId === user?.id || isDemoRoomAdmin;
   const isObserver = participantType === "observer";
   const roomStatus = (room?.status ?? "open") as "open" | "closed";
   const isClosed = roomStatus === "closed";
+
+  // Calculate time until auto-close for demo rooms
+  const [timeUntilClose, setTimeUntilClose] = useState<number | null>(null);
+  useEffect(() => {
+    if (isDemoRoom && room?.autoCloseAt) {
+      const updateTimer = () => {
+        const now = Date.now();
+        const remaining = Math.max(0, room.autoCloseAt! - now);
+        setTimeUntilClose(remaining);
+      };
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isDemoRoom, room?.autoCloseAt]);
 
   // Point scale from room or default
   const pointScale =
@@ -127,7 +166,13 @@ function RoomPage() {
   }
 
   // Access denied - private room and user not signed in
-  if (roomResult.status === "access_denied") {
+  // Check both roomResult and other queries for access denied
+  const hasAccessDenied =
+    roomResult?.status === "access_denied" ||
+    participantsResult?.status === "access_denied" ||
+    votesResult?.status === "access_denied";
+
+  if (hasAccessDenied) {
     return (
       <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
         <Card className="max-w-md">
@@ -165,25 +210,54 @@ function RoomPage() {
   };
 
   const handleReveal = () => {
-    revealVotes({ roomId: roomId as Id<"rooms"> });
+    revealVotes({
+      roomId: roomId as Id<"rooms">,
+      demoSessionId: isDemoRoom ? (demoSessionId ?? undefined) : undefined,
+    });
   };
 
   const handleStartTimer = () => {
-    startTimerMutation({ roomId: roomId as Id<"rooms"> });
+    startTimerMutation({
+      roomId: roomId as Id<"rooms">,
+      demoSessionId: isDemoRoom ? (demoSessionId ?? undefined) : undefined,
+    });
   };
 
   const handleStopTimer = () => {
-    stopTimerMutation({ roomId: roomId as Id<"rooms"> });
+    stopTimerMutation({
+      roomId: roomId as Id<"rooms">,
+      demoSessionId: isDemoRoom ? (demoSessionId ?? undefined) : undefined,
+    });
   };
 
   // Unauthenticated user viewing public room (read-only)
-  const isReadOnlyViewer = !isAuthenticated && isPublicRoom;
+  // Exception: demo room admins can perform admin actions
+  const isReadOnlyViewer = !isAuthenticated && isPublicRoom && !isDemoRoomAdmin;
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-6">
+        {/* Demo room indicator */}
+        {isDemoRoom && (
+          <Alert className="mb-4">
+            <Clock className="w-4 h-4" />
+            <AlertTitle>Demo Room</AlertTitle>
+            <AlertDescription>
+              This is a demo room that will automatically close in{" "}
+              {timeUntilClose !== null
+                ? `${Math.floor(timeUntilClose / 60000)}:${Math.floor(
+                    (timeUntilClose % 60000) / 1000,
+                  )
+                    .toString()
+                    .padStart(2, "0")}`
+                : "5:00"}
+              . Demo rooms cannot be reopened.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Public room indicator */}
-        {isPublicRoom && (
+        {isPublicRoom && !isDemoRoom && (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-4">
             <Globe className="w-4 h-4" />
             <span>Public Room</span>
@@ -202,8 +276,8 @@ function RoomPage() {
           </Alert>
         )}
 
-        {/* Room Controls - only for admins when authenticated */}
-        {isAuthenticated && (
+        {/* Room Controls - for admins (authenticated or demo room admin) */}
+        {(isAuthenticated || isDemoRoomAdmin) && (
           <RoomControls
             roomId={roomId as Id<"rooms">}
             roomName={room.name}
@@ -212,14 +286,13 @@ function RoomPage() {
             currentTicketNumber={currentRound?.ticketNumber}
             isRevealed={currentRound?.isRevealed ?? false}
             isHost={isAdmin}
-            hasVotes={hasVotes}
-            onReveal={handleReveal}
-            timerEndsAt={room.timerEndsAt}
-            timerStartedAt={room.timerStartedAt}
-            onStartTimer={handleStartTimer}
-            onStopTimer={handleStopTimer}
             roomStatus={roomStatus}
             isAdmin={isAdmin}
+            isDemoRoom={isDemoRoom}
+            isAuthenticated={isAuthenticated}
+            demoSessionId={demoSessionId ?? undefined}
+            isParticipant={isParticipant}
+            participantType={participantType}
           />
         )}
 
@@ -230,15 +303,15 @@ function RoomPage() {
             {room.currentStory && (
               <p className="text-muted-foreground mt-2">{room.currentStory}</p>
             )}
-            {/* Show timer for read-only viewers if active */}
-            {room.timerEndsAt && room.timerStartedAt && (
-              <div className="mt-4 flex justify-center">
+            {/* Show timer for read-only viewers if active - reserve space to prevent layout shift */}
+            <div className="mt-4 min-h-[48px] flex justify-center items-center">
+              {room.timerEndsAt && room.timerStartedAt && (
                 <VotingTimer
                   timerEndsAt={room.timerEndsAt}
                   timerStartedAt={room.timerStartedAt}
                 />
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
@@ -246,58 +319,24 @@ function RoomPage() {
         <div className="mt-8 flex flex-col lg:grid lg:grid-cols-[1fr_300px] gap-8">
           {/* Voting Area */}
           <div className="space-y-6 order-1">
-            <Card>
-              <CardContent className="pt-6">
-                {/* Participant type toggle for authenticated users */}
-                {isAuthenticated && isParticipant && (
-                  <div className="flex justify-center mb-6">
-                    <ParticipantTypeToggle
-                      roomId={roomId as Id<"rooms">}
-                      currentType={participantType}
-                    />
-                  </div>
-                )}
-
-                <h2 className="text-lg font-semibold mb-6 text-center">
-                  {isReadOnlyViewer
-                    ? "Viewing Session"
-                    : isObserver
-                      ? "Observing"
-                      : (currentRound?.isRevealed ?? false)
-                        ? "Votes Revealed"
-                        : currentVote
-                          ? "You voted - waiting for others..."
-                          : "Cast Your Vote"}
-                </h2>
-
-                {/* Sign in prompt for unauthenticated users */}
-                {isReadOnlyViewer && (
-                  <div className="text-center mb-6 p-4 bg-muted/50 rounded-lg">
-                    <p className="text-muted-foreground mb-3">
-                      Sign in to participate in voting
-                    </p>
-                    <SignInButton mode="modal">
-                      <Button size="sm">
-                        <LogIn className="w-4 h-4 mr-2" />
-                        Sign In to Vote
-                      </Button>
-                    </SignInButton>
-                  </div>
-                )}
-
-                <VotingCardGrid
-                  selectedValue={currentVote?.value ?? null}
-                  onSelect={handleVote}
-                  isDisabled={
-                    (currentRound?.isRevealed ?? false) ||
-                    isReadOnlyViewer ||
-                    isClosed
-                  }
-                  isObserver={isObserver}
-                  pointScale={pointScale}
-                />
-              </CardContent>
-            </Card>
+            <VotingCard
+              roomId={roomId as Id<"rooms">}
+              currentStory={room.currentStory}
+              currentRoundName={currentRound?.name}
+              currentTicketNumber={currentRound?.ticketNumber}
+              isRevealed={currentRound?.isRevealed ?? false}
+              isAdmin={isAdmin}
+              isClosed={isClosed}
+              isAuthenticated={isAuthenticated}
+              isReadOnlyViewer={isReadOnlyViewer}
+              isObserver={isObserver}
+              currentVote={currentVote}
+              pointScale={pointScale}
+              onVote={handleVote}
+              demoSessionId={
+                isDemoRoom ? (demoSessionId ?? undefined) : undefined
+              }
+            />
 
             {/* Round History Table */}
             <RoundHistoryTable
@@ -305,10 +344,14 @@ function RoomPage() {
               isAdmin={isAdmin}
               currentRoundId={room.currentRoundId}
               pointScalePreset={room.pointScalePreset}
+              pointScale={pointScale}
+              demoSessionId={
+                isDemoRoom ? (demoSessionId ?? undefined) : undefined
+              }
             />
 
             {/* Admin Settings Panel - in left column on desktop */}
-            {isAuthenticated && isAdmin && (
+            {(isAuthenticated || isDemoRoomAdmin) && isAdmin && (
               <div className="hidden lg:block">
                 <RoomSettings
                   roomId={roomId as Id<"rooms">}
@@ -316,7 +359,12 @@ function RoomPage() {
                   currentPreset={room.pointScalePreset ?? "fibonacci"}
                   currentPointScale={pointScale}
                   currentTimerDuration={room.timerDurationSeconds ?? 180}
+                  currentAutoStartTimer={room.autoStartTimer ?? false}
                   isAdmin={isAdmin}
+                  demoSessionId={
+                    isDemoRoom ? (demoSessionId ?? undefined) : undefined
+                  }
+                  isDemoRoom={isDemoRoom}
                 />
               </div>
             )}
@@ -332,17 +380,32 @@ function RoomPage() {
                 hostId={room.hostId}
                 roomId={roomId as Id<"rooms">}
                 isCurrentUserAdmin={isAdmin}
-                votes={votes?.map((v) => ({
+                votes={votes.map((v) => ({
                   value: v.value,
                   hasVoted: v.hasVoted,
                 }))}
                 pointScalePreset={room.pointScalePreset}
+                pointScale={pointScale}
+                isHost={isAdmin}
+                isClosed={isClosed}
+                hasVotes={hasVotes}
+                onReveal={handleReveal}
+                demoSessionId={
+                  isDemoRoom ? (demoSessionId ?? undefined) : undefined
+                }
+                timerEndsAt={room.timerEndsAt}
+                timerStartedAt={room.timerStartedAt}
+                onStopTimer={handleStopTimer}
+                currentRoundId={currentRound?._id}
+                currentRoundAverageScore={currentRound?.averageScore}
+                currentRoundMedianScore={currentRound?.medianScore}
+                currentRoundFinalScore={currentRound?.finalScore}
               />
             </CardContent>
           </Card>
 
           {/* Admin Settings Panel - at the bottom on mobile */}
-          {isAuthenticated && isAdmin && (
+          {(isAuthenticated || isDemoRoomAdmin) && isAdmin && (
             <div className="order-3 lg:hidden">
               <RoomSettings
                 roomId={roomId as Id<"rooms">}
@@ -351,6 +414,10 @@ function RoomPage() {
                 currentPointScale={pointScale}
                 currentTimerDuration={room.timerDurationSeconds ?? 180}
                 isAdmin={isAdmin}
+                demoSessionId={
+                  isDemoRoom ? (demoSessionId ?? undefined) : undefined
+                }
+                isDemoRoom={isDemoRoom}
               />
             </div>
           )}

@@ -9,16 +9,21 @@ export default defineSchema({
     currentStory: v.optional(v.string()), // Current story/ticket being voted on
     // Fields for visibility and point scales
     visibility: v.optional(v.union(v.literal("public"), v.literal("private"))), // Default: "private"
-    pointScalePreset: v.optional(v.string()), // "fibonacci", "tshirt", "powers", "linear", "custom"
+    pointScalePreset: v.optional(v.string()), // "fibonacci", "tshirt", "powers", "hybrid", "linear", "custom"
     pointScale: v.optional(v.array(v.string())), // Array of point values
     // Timer fields
     timerDurationSeconds: v.optional(v.number()), // Default timer duration (180 = 3 min)
     timerStartedAt: v.optional(v.number()), // Timestamp when timer started (null = not running)
     timerEndsAt: v.optional(v.number()), // Timestamp when timer expires
+    autoStartTimer: v.optional(v.boolean()), // Auto-start timer when new round starts (default: false)
     // Current active round
     currentRoundId: v.optional(v.id("rounds")), // Active round being voted on
     // Room status
     status: v.optional(v.union(v.literal("open"), v.literal("closed"))), // Default: "open"
+    // Demo room fields
+    isDemo: v.optional(v.boolean()), // Whether this is a demo room
+    autoCloseAt: v.optional(v.number()), // Timestamp when demo room should auto-close
+    demoSessionId: v.optional(v.string()), // Unique session identifier for demo room admin
   }).index("by_host", ["hostId"]),
 
   // Rounds table - tracks each voting round within a room

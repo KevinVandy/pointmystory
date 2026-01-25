@@ -8,12 +8,15 @@ function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
 }
 
-function AlertDialogTrigger({ render, ...props }: AlertDialogPrimitive.Trigger.Props) {
+function AlertDialogTrigger({
+  render,
+  ...props
+}: AlertDialogPrimitive.Trigger.Props) {
   return (
-    <AlertDialogPrimitive.Trigger 
-      data-slot="alert-dialog-trigger" 
+    <AlertDialogPrimitive.Trigger
+      data-slot="alert-dialog-trigger"
       render={render}
-      {...props} 
+      {...props}
     />
   );
 }

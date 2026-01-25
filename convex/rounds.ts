@@ -142,6 +142,7 @@ export const setFinalScore = mutation({
   args: {
     roundId: v.id("rounds"),
     finalScore: v.string(),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const round = await ctx.db.get(args.roundId);
@@ -149,7 +150,7 @@ export const setFinalScore = mutation({
       throw new Error("Round not found");
     }
 
-    await requireRoomAdmin(ctx, round.roomId);
+    await requireRoomAdmin(ctx, round.roomId, args.demoSessionId);
 
     await ctx.db.patch(args.roundId, {
       finalScore: args.finalScore,
@@ -180,6 +181,82 @@ const TSHIRT_SIZE_MAP: Record<string, number> = {
   L: 5,
   XL: 8,
 };
+
+// Reverse mapping: number to t-shirt size
+const NUMBER_TO_TSHIRT: Record<number, string> = {
+  1: "XS",
+  2: "S",
+  3: "M",
+  5: "L",
+  8: "XL",
+};
+
+/**
+ * Convert a number back to t-shirt size (finds closest match).
+ */
+function numberToTShirtSize(num: number): string {
+  const tshirtValues = Object.values(TSHIRT_SIZE_MAP).sort((a, b) => a - b);
+  let closest = tshirtValues[0];
+  let minDiff = Math.abs(num - closest);
+  
+  for (const val of tshirtValues) {
+    const diff = Math.abs(num - val);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = val;
+    }
+  }
+  
+  return NUMBER_TO_TSHIRT[closest] || num.toFixed(1);
+}
+
+/**
+ * Round a number to the nearest value in the point scale.
+ * Handles numeric values and t-shirt sizes.
+ */
+export function roundToNearestPointScale(
+  num: number | undefined | null,
+  pointScale: string[],
+  pointScalePreset?: string
+): string | null {
+  if (num === undefined || num === null || !pointScale || pointScale.length === 0) {
+    return null;
+  }
+
+  const isTShirtScale = pointScalePreset === "tshirt";
+  
+  // For t-shirt sizes, convert number to nearest t-shirt size
+  if (isTShirtScale) {
+    return numberToTShirtSize(num);
+  }
+
+  // For numeric scales, find the closest numeric value
+  const numericValues = pointScale
+    .filter((v) => v !== "?")
+    .map((v) => parseFloat(v))
+    .filter((v) => !isNaN(v))
+    .sort((a, b) => a - b);
+
+  if (numericValues.length === 0) {
+    return null;
+  }
+
+  // Find the closest numeric value
+  let closest = numericValues[0];
+  let minDiff = Math.abs(num - closest);
+
+  for (const val of numericValues) {
+    const diff = Math.abs(num - val);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = val;
+    }
+  }
+
+  // Return as string, matching the format in point scale (e.g., "8" not "8.0")
+  const closestStr = closest.toString();
+  return pointScale.includes(closestStr) ? closestStr : closest.toFixed(1);
+}
 
 /**
  * Convert a vote value to a number for calculations.

@@ -1,8 +1,9 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { requireAuth, requireRoomAdmin, canViewRoomWithoutAuth } from "./permissions";
-import { getPointScaleForPreset, DEFAULT_PRESET } from "./pointScales";
-import { calculateVoteStats } from "./rounds";
+import { getPointScaleForPreset, DEFAULT_PRESET, getEffectivePointScale } from "./pointScales";
+import { calculateVoteStats, roundToNearestPointScale } from "./rounds";
+import { internal } from "./_generated/api";
 
 // Default timer duration in seconds (3 minutes)
 const DEFAULT_TIMER_DURATION = 180;
@@ -103,9 +104,11 @@ export const updateSettings = mutation({
     pointScalePreset: v.optional(v.string()),
     pointScale: v.optional(v.array(v.string())),
     timerDurationSeconds: v.optional(v.number()),
+    autoStartTimer: v.optional(v.boolean()),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
 
     const room = await ctx.db.get(args.roomId);
     if (!room) {
@@ -117,6 +120,7 @@ export const updateSettings = mutation({
       pointScalePreset: string;
       pointScale: string[];
       timerDurationSeconds: number;
+      autoStartTimer: boolean;
     }> = {};
 
     if (args.visibility !== undefined) {
@@ -125,6 +129,10 @@ export const updateSettings = mutation({
 
     if (args.timerDurationSeconds !== undefined) {
       updates.timerDurationSeconds = args.timerDurationSeconds;
+    }
+
+    if (args.autoStartTimer !== undefined) {
+      updates.autoStartTimer = args.autoStartTimer;
     }
 
     if (args.pointScalePreset !== undefined) {
@@ -154,9 +162,10 @@ export const updateStory = mutation({
     roomId: v.id("rooms"),
     story: v.string(),
     ticketNumber: v.optional(v.string()),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
 
     const room = await ctx.db.get(args.roomId);
     if (!room) {
@@ -184,9 +193,10 @@ export const updateStory = mutation({
 export const reveal = mutation({
   args: {
     roomId: v.id("rooms"),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
 
     const room = await ctx.db.get(args.roomId);
     if (!room) {
@@ -212,12 +222,25 @@ export const reveal = mutation({
         // Calculate stats
         const stats = calculateVoteStats(votes);
 
-        // Update round with reveal time, stats, and story name
+        // Calculate default final score by rounding average/median to nearest point scale value
+        const pointScale = getEffectivePointScale(room.pointScale, room.pointScalePreset);
+        const scoreToUse = stats.averageScore ?? stats.medianScore;
+        const defaultFinalScore = roundToNearestPointScale(
+          scoreToUse,
+          pointScale,
+          room.pointScalePreset
+        );
+
+        // Update round with reveal time, stats, story name, and default final score
         await ctx.db.patch(room.currentRoundId, {
           isRevealed: true,
           revealedAt: Date.now(),
           name: round.name || room.currentStory || undefined,
           ...stats,
+          // Only set finalScore if it's not already set and we have a default value
+          ...(round.finalScore === undefined && defaultFinalScore !== null && {
+            finalScore: defaultFinalScore,
+          }),
         });
       }
     }
@@ -230,9 +253,10 @@ export const startNewRound = mutation({
     roomId: v.id("rooms"),
     name: v.optional(v.string()),
     ticketNumber: v.optional(v.string()),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
 
     const room = await ctx.db.get(args.roomId);
     if (!room) {
@@ -254,12 +278,25 @@ export const startNewRound = mutation({
       isRevealed: false,
     });
 
+    // Check if auto-start timer is enabled
+    const autoStartTimer = room.autoStartTimer ?? false;
+    const timerDuration = room.timerDurationSeconds ?? DEFAULT_TIMER_DURATION;
+    
+    let timerStartedAt: number | undefined = undefined;
+    let timerEndsAt: number | undefined = undefined;
+    
+    if (autoStartTimer) {
+      const now = Date.now();
+      timerStartedAt = now;
+      timerEndsAt = now + timerDuration * 1000;
+    }
+
     // Update room to point to the new round and reset state
     await ctx.db.patch(args.roomId, {
       currentRoundId: roundId,
       currentStory: args.name || args.ticketNumber || undefined,
-      timerStartedAt: undefined,
-      timerEndsAt: undefined,
+      timerStartedAt,
+      timerEndsAt,
     });
 
     return roundId;
@@ -270,9 +307,10 @@ export const startNewRound = mutation({
 export const resetVotes = mutation({
   args: {
     roomId: v.id("rooms"),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
 
     const room = await ctx.db.get(args.roomId);
     if (!room) {
@@ -303,9 +341,10 @@ export const startTimer = mutation({
   args: {
     roomId: v.id("rooms"),
     durationSeconds: v.optional(v.number()),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
 
     const room = await ctx.db.get(args.roomId);
     if (!room) {
@@ -333,9 +372,10 @@ export const startTimer = mutation({
 export const stopTimer = mutation({
   args: {
     roomId: v.id("rooms"),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
 
     const room = await ctx.db.get(args.roomId);
     if (!room) {
@@ -353,9 +393,10 @@ export const stopTimer = mutation({
 export const closeRoom = mutation({
   args: {
     roomId: v.id("rooms"),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
 
     const room = await ctx.db.get(args.roomId);
     if (!room) {
@@ -369,21 +410,102 @@ export const closeRoom = mutation({
 });
 
 // Reopen a room (admin only)
+// Demo rooms cannot be reopened by non-signed-in users
 export const reopenRoom = mutation({
   args: {
     roomId: v.id("rooms"),
+    demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRoomAdmin(ctx, args.roomId);
-
     const room = await ctx.db.get(args.roomId);
     if (!room) {
       throw new Error("Room not found");
     }
 
+    // Prevent reopening demo rooms by non-signed-in users
+    if (room.isDemo) {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        throw new Error("Demo rooms cannot be reopened. Please sign in to create a permanent room.");
+      }
+    }
+
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
+
     await ctx.db.patch(args.roomId, {
       status: "open",
     });
+  },
+});
+
+// Create a demo room (no authentication required)
+export const createDemo = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Generate a unique demo session ID
+    // Using timestamp + random number for uniqueness
+    const demoSessionId = `demo_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    
+    // Calculate auto-close time (5 minutes from now)
+    const autoCloseAt = Date.now() + 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    // Determine the point scale to use (default to fibonacci)
+    const preset = DEFAULT_PRESET;
+    const pointScale = getPointScaleForPreset(preset);
+
+    // Create demo room with special hostId for demo rooms
+    const roomId = await ctx.db.insert("rooms", {
+      name: "Demo Room",
+      hostId: `demo_${demoSessionId}`, // Special hostId format for demo rooms
+      currentStory: undefined,
+      visibility: "public", // Demo rooms must be public
+      pointScalePreset: preset,
+      pointScale: pointScale,
+      timerDurationSeconds: DEFAULT_TIMER_DURATION,
+      status: "open",
+      isDemo: true,
+      autoCloseAt: autoCloseAt,
+      demoSessionId: demoSessionId,
+    });
+
+    // Create the initial round for this room
+    const roundId = await ctx.db.insert("rounds", {
+      roomId,
+      createdAt: Date.now(),
+      isRevealed: false,
+    });
+
+    // Update room with the current round
+    await ctx.db.patch(roomId, {
+      currentRoundId: roundId,
+    });
+
+    // Schedule auto-close after 5 minutes
+    await ctx.scheduler.runAfter(5 * 60 * 1000, internal.rooms.autoCloseDemoRoom, {
+      roomId,
+    });
+
+    return { roomId, demoSessionId };
+  },
+});
+
+// Auto-close demo room (scheduled function)
+export const autoCloseDemoRoom = internalMutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      return; // Room doesn't exist, nothing to do
+    }
+
+    // Only close if it's a demo room and not already closed
+    if (room.isDemo && room.status !== "closed") {
+      await ctx.db.patch(args.roomId, {
+        status: "closed",
+      });
+    }
   },
 });
 

@@ -121,7 +121,10 @@ export function RoomMembershipTable() {
               const roomParticipants = room.participants || [];
               const maxAvatars = 5;
               const visibleParticipants = roomParticipants.slice(0, maxAvatars);
-              const remainingCount = Math.max(0, roomParticipants.length - maxAvatars);
+              const remainingCount = Math.max(
+                0,
+                roomParticipants.length - maxAvatars,
+              );
 
               return (
                 <TableRow key={room._id}>
@@ -149,7 +152,9 @@ export function RoomMembershipTable() {
                         )}
                       </AvatarGroup>
                     ) : (
-                      <span className="text-muted-foreground text-sm">No participants</span>
+                      <span className="text-muted-foreground text-sm">
+                        No participants
+                      </span>
                     )}
                   </TableCell>
                   <TableCell>
