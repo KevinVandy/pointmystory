@@ -18,7 +18,7 @@ export function VotingCard({
       onClick={onClick}
       disabled={isDisabled}
       className={cn(
-        "relative flex items-center justify-center w-20 h-28 rounded-xl border-2 text-2xl font-bold transition-all duration-200",
+        "relative flex items-center justify-center w-16 h-20 rounded-xl border-2 text-xl font-bold transition-all duration-200 cursor-pointer",
         "hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
         isSelected
           ? "border-primary bg-primary text-primary-foreground shadow-md scale-105"

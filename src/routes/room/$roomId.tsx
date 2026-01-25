@@ -252,9 +252,9 @@ function RoomPage() {
         )}
 
         {/* Main Content */}
-        <div className="mt-8 grid lg:grid-cols-[1fr_300px] gap-8">
+        <div className="mt-8 flex flex-col lg:grid lg:grid-cols-[1fr_300px] gap-8">
           {/* Voting Area */}
-          <div className="space-y-6">
+          <div className="space-y-6 order-1">
             <Card>
               <CardContent className="pt-6">
                 {/* Participant type toggle for authenticated users */}
@@ -297,7 +297,11 @@ function RoomPage() {
                 <VotingCardGrid
                   selectedValue={currentVote?.value ?? null}
                   onSelect={handleVote}
-                  isDisabled={(currentRound?.isRevealed ?? false) || isReadOnlyViewer || isClosed}
+                  isDisabled={
+                    (currentRound?.isRevealed ?? false) ||
+                    isReadOnlyViewer ||
+                    isClosed
+                  }
                   isObserver={isObserver}
                   pointScale={pointScale}
                 />
@@ -311,21 +315,23 @@ function RoomPage() {
               currentRoundId={room.currentRoundId}
             />
 
-            {/* Admin Settings Panel - at the bottom */}
+            {/* Admin Settings Panel - in left column on desktop */}
             {isAuthenticated && isAdmin && (
-              <RoomSettings
-                roomId={roomId as Id<"rooms">}
-                currentVisibility={room.visibility ?? "private"}
-                currentPreset={room.pointScalePreset ?? "fibonacci"}
-                currentPointScale={pointScale}
-                currentTimerDuration={room.timerDurationSeconds ?? 180}
-                isAdmin={isAdmin}
-              />
+              <div className="hidden lg:block">
+                <RoomSettings
+                  roomId={roomId as Id<"rooms">}
+                  currentVisibility={room.visibility ?? "private"}
+                  currentPreset={room.pointScalePreset ?? "fibonacci"}
+                  currentPointScale={pointScale}
+                  currentTimerDuration={room.timerDurationSeconds ?? 180}
+                  isAdmin={isAdmin}
+                />
+              </div>
             )}
           </div>
 
           {/* Participants Sidebar */}
-          <Card>
+          <Card className="order-2">
             <CardContent className="pt-6">
               <ParticipantList
                 participants={participantsWithVotes}
@@ -341,6 +347,20 @@ function RoomPage() {
               />
             </CardContent>
           </Card>
+
+          {/* Admin Settings Panel - at the bottom on mobile */}
+          {isAuthenticated && isAdmin && (
+            <div className="order-3 lg:hidden">
+              <RoomSettings
+                roomId={roomId as Id<"rooms">}
+                currentVisibility={room.visibility ?? "private"}
+                currentPreset={room.pointScalePreset ?? "fibonacci"}
+                currentPointScale={pointScale}
+                currentTimerDuration={room.timerDurationSeconds ?? 180}
+                isAdmin={isAdmin}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

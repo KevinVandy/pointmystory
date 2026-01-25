@@ -10,7 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { LogIn, LogOut, Calendar } from "lucide-react";
 import { useUser } from "@clerk/tanstack-react-start";
 import { toast } from "sonner";
@@ -23,18 +29,30 @@ export function RoomMembershipTable() {
   // Get user's rooms
   const userRooms = useQuery(
     api.rooms.listByUser,
-    isLoaded && user ? {} : "skip"
+    isLoaded && user ? {} : "skip",
   );
 
   const leaveRoom = useMutation(api.participants.leave);
 
-  // Filter to only open rooms
-  const openRooms = userRooms?.filter(
-    (room) => (room.status ?? "open") === "open"
-  ) ?? [];
+  // Sort rooms: open rooms first, then closed rooms (both sorted by joinedAt descending)
+  const sortedRooms = userRooms
+    ? [...userRooms].sort((a, b) => {
+        const aStatus = a.status ?? "open";
+        const bStatus = b.status ?? "open";
+        const aIsOpen = aStatus === "open";
+        const bIsOpen = bStatus === "open";
 
-  // Don't show if no open rooms
-  if (openRooms.length === 0) {
+        // If one is open and one is closed, open comes first
+        if (aIsOpen && !bIsOpen) return -1;
+        if (!aIsOpen && bIsOpen) return 1;
+
+        // If both have the same status, sort by joinedAt (most recent first)
+        return b.joinedAt - a.joinedAt;
+      })
+    : [];
+
+  // Don't show if no rooms
+  if (sortedRooms.length === 0) {
     return null;
   }
 
@@ -69,9 +87,10 @@ export function RoomMembershipTable() {
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle>Your Active Rooms</CardTitle>
+        <CardTitle>Your Rooms</CardTitle>
         <CardDescription>
-          Rooms you can rejoin. Admins cannot leave rooms but can close them.
+          Rooms you can rejoin. Closed rooms are shown below open rooms. Admins
+          cannot leave rooms but can close them.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -85,17 +104,25 @@ export function RoomMembershipTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {openRooms.map((room) => {
+            {sortedRooms.map((room) => {
               const isAdmin =
                 room.participantRole === "admin" || room.hostId === user?.id;
+              const roomStatus = room.status ?? "open";
+              const isOpen = roomStatus === "open";
 
               return (
                 <TableRow key={room._id}>
                   <TableCell className="font-medium">{room.name}</TableCell>
                   <TableCell>
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                      Open
-                    </span>
+                    {isOpen ? (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Open
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                        Closed
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 text-muted-foreground text-sm">

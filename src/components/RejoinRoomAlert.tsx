@@ -1,7 +1,12 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate, useLocation } from "@tanstack/react-router";
-import { Alert, AlertDescription, AlertTitle, AlertAction } from "@/components/ui/alert";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  AlertAction,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { X, LogIn, Info } from "lucide-react";
 import { useState } from "react";
@@ -18,7 +23,7 @@ export function RejoinRoomAlert() {
   // Get user's rooms - must call hooks before any conditional returns
   const userRooms = useQuery(
     api.rooms.listByUser,
-    isLoaded && user ? {} : "skip"
+    isLoaded && user ? {} : "skip",
   );
 
   const leaveRoom = useMutation(api.participants.leave);
@@ -37,7 +42,7 @@ export function RejoinRoomAlert() {
     (room) =>
       (room.status ?? "open") === "open" &&
       room._id !== currentRoomId &&
-      !dismissedRooms.has(room._id)
+      !dismissedRooms.has(room._id),
   );
 
   // Don't show if no active rooms
@@ -47,7 +52,9 @@ export function RejoinRoomAlert() {
 
   // Show the first active room (or could show multiple)
   const roomToRejoin = activeRooms[0];
-  const isAdmin = roomToRejoin.participantRole === "admin" || roomToRejoin.hostId === user?.id;
+  const isAdmin =
+    roomToRejoin.participantRole === "admin" ||
+    roomToRejoin.hostId === user?.id;
 
   const handleRejoin = () => {
     navigate({ to: `/room/${roomToRejoin._id}` });

@@ -18,6 +18,17 @@ import { Switch } from "./ui/switch";
 import { Slider } from "./ui/slider";
 import { Settings, Globe, Lock, Copy, Timer } from "lucide-react";
 import { toast } from "sonner";
+import { Separator } from "./ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 // Point scale presets - should match convex/pointScales.ts
 const POINT_SCALE_PRESETS = {
@@ -68,6 +79,7 @@ export function RoomSettings({
     return Math.round(duration / 15) * 15;
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [showPublicConfirm, setShowPublicConfirm] = useState(false);
 
   if (!isAdmin) {
     return null;
@@ -120,12 +132,35 @@ export function RoomSettings({
   const handleVisibilityChange = async (
     newVisibility: "public" | "private",
   ) => {
+    // If changing to public, show confirmation dialog
+    if (newVisibility === "public" && visibility === "private") {
+      setShowPublicConfirm(true);
+      return;
+    }
+
+    // Otherwise, update immediately
     setVisibility(newVisibility);
     setIsSaving(true);
     try {
       await updateSettings({
         roomId,
         visibility: newVisibility,
+      });
+    } catch (error) {
+      console.error("Failed to update visibility:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const confirmMakePublic = async () => {
+    setShowPublicConfirm(false);
+    setVisibility("public");
+    setIsSaving(true);
+    try {
+      await updateSettings({
+        roomId,
+        visibility: "public",
       });
     } catch (error) {
       console.error("Failed to update visibility:", error);
@@ -229,32 +264,6 @@ export function RoomSettings({
           </div>
         </div>
 
-        {/* Visibility Toggle */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              {visibility === "public" ? (
-                <Globe className="size-4" />
-              ) : (
-                <Lock className="size-4" />
-              )}
-              Room Visibility
-            </Label>
-            <Switch
-              checked={visibility === "public"}
-              onCheckedChange={(checked) =>
-                handleVisibilityChange(checked ? "public" : "private")
-              }
-              disabled={isSaving}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {visibility === "public"
-              ? "Anyone with the link can view (sign in required to vote)"
-              : "Only signed-in users can access this room"}
-          </p>
-        </div>
-
         {/* Point Scale Preset */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Point Scale</Label>
@@ -319,6 +328,57 @@ export function RoomSettings({
             </p>
           </div>
         )}
+
+        <Separator />
+
+        {/* Visibility Toggle */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              {visibility === "public" ? (
+                <Globe className="size-4" />
+              ) : (
+                <Lock className="size-4" />
+              )}
+              Room Visibility
+            </Label>
+            <Switch
+              checked={visibility === "public"}
+              onCheckedChange={(checked) =>
+                handleVisibilityChange(checked ? "public" : "private")
+              }
+              disabled={isSaving}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {visibility === "public"
+              ? "Anyone with the link can view (sign in required to vote)"
+              : "Only signed-in users can access this room"}
+          </p>
+        </div>
+
+        {/* Confirm Public Dialog */}
+        <AlertDialog
+          open={showPublicConfirm}
+          onOpenChange={setShowPublicConfirm}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Make Room Public?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Making this room public means anyone with the link can view it
+                (though they'll need to sign in to vote). Are you sure you want
+                to make this room public?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmMakePublic}>
+                Make Public
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Share Link */}
         <div className="space-y-2">

@@ -172,11 +172,7 @@ export function RoomControls({
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                    >
+                    <Button variant="outline" size="sm" className="gap-2">
                       <Lock className="w-4 h-4" />
                       Close Room
                     </Button>
@@ -185,9 +181,10 @@ export function RoomControls({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Close Room</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to close "{roomName}"? Once closed,
-                        participants will not be able to vote or start new rounds,
-                        but they can still view the room. You can reopen it at any time.
+                        Are you sure you want to close "{roomName}"? Once
+                        closed, participants will not be able to vote or start
+                        new rounds, but they can still view the room. You can
+                        reopen it at any time.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
