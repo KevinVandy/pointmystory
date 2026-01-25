@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as jira from "../jira.js";
 import type * as participants from "../participants.js";
 import type * as permissions from "../permissions.js";
 import type * as pointScales from "../pointScales.js";
@@ -22,6 +23,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  jira: typeof jira;
   participants: typeof participants;
   permissions: typeof permissions;
   pointScales: typeof pointScales;

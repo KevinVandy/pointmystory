@@ -316,6 +316,7 @@ function RoomPage() {
               currentStory={room.currentStory}
               currentRoundName={currentRound?.name}
               currentTicketNumber={currentRound?.ticketNumber}
+              jiraCloudId={currentRound?.jiraCloudId}
               isRevealed={currentRound?.isRevealed ?? false}
               isAdmin={isAdmin}
               isClosed={isClosed}

@@ -165,6 +165,7 @@ export const updateStory = mutation({
     roomId: v.id("rooms"),
     story: v.string(),
     ticketNumber: v.optional(v.string()),
+    jiraCloudId: v.optional(v.string()),
     demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -180,12 +181,13 @@ export const updateStory = mutation({
       currentStory: args.story,
     });
 
-    // If ticketNumber is provided and there's a current round, update the round
-    if (args.ticketNumber !== undefined && room.currentRoundId) {
+    // If ticketNumber or jiraCloudId is provided and there's a current round, update the round
+    if ((args.ticketNumber !== undefined || args.jiraCloudId !== undefined) && room.currentRoundId) {
       const currentRound = await ctx.db.get(room.currentRoundId);
       if (currentRound) {
         await ctx.db.patch(room.currentRoundId, {
-          ticketNumber: args.ticketNumber || undefined,
+          ...(args.ticketNumber !== undefined && { ticketNumber: args.ticketNumber || undefined }),
+          ...(args.jiraCloudId !== undefined && { jiraCloudId: args.jiraCloudId || undefined }),
         });
       }
     }
@@ -256,6 +258,7 @@ export const startNewRound = mutation({
     roomId: v.id("rooms"),
     name: v.optional(v.string()),
     ticketNumber: v.optional(v.string()),
+    jiraCloudId: v.optional(v.string()),
     demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -277,6 +280,7 @@ export const startNewRound = mutation({
       roomId: args.roomId,
       name: args.name,
       ticketNumber: args.ticketNumber,
+      jiraCloudId: args.jiraCloudId,
       createdAt: Date.now(),
       isRevealed: false,
     });

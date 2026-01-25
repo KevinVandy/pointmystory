@@ -8,6 +8,7 @@ export const create = mutation({
     roomId: v.id("rooms"),
     name: v.optional(v.string()),
     ticketNumber: v.optional(v.string()),
+    jiraCloudId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireRoomAdmin(ctx, args.roomId);
@@ -22,6 +23,7 @@ export const create = mutation({
       roomId: args.roomId,
       name: args.name,
       ticketNumber: args.ticketNumber,
+      jiraCloudId: args.jiraCloudId,
       createdAt: Date.now(),
       isRevealed: false,
     });

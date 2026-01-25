@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import * as React from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Ticket, FileText } from "lucide-react";
+import { JiraTicketSelector } from "./JiraTicketSelector";
 
 interface NewRoundDialogProps {
   roomId: Id<"rooms">;
@@ -42,6 +43,7 @@ export function NewRoundDialog({
   const [name, setName] = useState("");
   const [ticketNumber, setTicketNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCloudId, setSelectedCloudId] = useState<string | undefined>();
 
   const startNewRound = useMutation(api.rooms.startNewRound);
   const updateStory = useMutation(api.rooms.updateStory);
@@ -66,6 +68,7 @@ export function NewRoundDialog({
             roomId,
             story: storyText,
             ticketNumber: ticketNumber.trim() || undefined,
+            jiraCloudId: selectedCloudId,
             demoSessionId,
           });
           onStoryUpdated?.();
@@ -76,6 +79,7 @@ export function NewRoundDialog({
           roomId,
           name: name.trim() || undefined,
           ticketNumber: ticketNumber.trim() || undefined,
+          jiraCloudId: selectedCloudId,
           demoSessionId,
         });
       }
@@ -103,9 +107,12 @@ export function NewRoundDialog({
           render={(props) => {
             // Extract props from the trigger Button and merge with AlertDialogTrigger props
             // This avoids nested buttons by rendering a single Button with merged props
+            const triggerProps = trigger.props as React.ComponentProps<
+              typeof Button
+            >;
             return (
-              <Button {...trigger.props} {...props}>
-                {trigger.props.children}
+              <Button {...triggerProps} {...props}>
+                {triggerProps.children}
               </Button>
             );
           }}
@@ -124,35 +131,52 @@ export function NewRoundDialog({
           <AlertDialogDescription>
             {isSetStoryMode
               ? "Set the story or ticket name for the current voting round."
-              : "Optionally add a name or ticket number for this round. This helps identify rounds in the history."}
+              : "Select a Jira issue or enter details manually for this round."}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="ticket-name" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Ticket Name
-            </Label>
-            <Input
-              id="ticket-name"
-              placeholder="e.g., User Authentication Flow"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
+        <div className="mt-4 space-y-4">
+          {/* Jira Ticket Selector - always shown, handles its own loading/error states */}
+          <JiraTicketSelector
+            onSelect={(issue) => {
+              setName(issue.summary);
+              setTicketNumber(issue.key);
+              setSelectedCloudId(issue.cloudId);
+            }}
+            selectedIssueKey={ticketNumber || undefined}
+            cloudId={selectedCloudId}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="ticket-number" className="flex items-center gap-2">
-              <Ticket className="w-4 h-4" />
-              Ticket Number
-            </Label>
-            <Input
-              id="ticket-number"
-              placeholder="e.g., PROJ-123"
-              value={ticketNumber}
-              onChange={(e) => setTicketNumber(e.target.value)}
-            />
+          {/* Always show ticket fields */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ticket-name" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Ticket Name
+              </Label>
+              <Input
+                id="ticket-name"
+                placeholder="e.g., User Authentication Flow"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="ticket-number"
+                className="flex items-center gap-2"
+              >
+                <Ticket className="w-4 h-4" />
+                Ticket Number
+              </Label>
+              <Input
+                id="ticket-number"
+                placeholder="e.g., PROJ-123"
+                value={ticketNumber}
+                onChange={(e) => setTicketNumber(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 

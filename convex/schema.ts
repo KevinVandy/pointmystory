@@ -35,6 +35,7 @@ export default defineSchema({
     roomId: v.id("rooms"),
     name: v.optional(v.string()), // Optional round name (e.g., "User Authentication")
     ticketNumber: v.optional(v.string()), // Optional ticket ID (e.g., "PROJ-123")
+    jiraCloudId: v.optional(v.string()), // Jira Cloud ID for fetching full issue details
     createdAt: v.number(), // When round started
     revealedAt: v.optional(v.number()), // When votes were revealed
     isRevealed: v.boolean(), // Whether votes have been revealed
