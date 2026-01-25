@@ -1,7 +1,17 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext } from "@tanstack/react-router";
-import { HeadContent, Scripts } from "@tanstack/react-router";
-import { ClerkProvider } from "@clerk/tanstack-react-start";
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+  Scripts,
+  useRouteContext,
+} from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { ClerkProvider, useAuth } from "@clerk/tanstack-react-start";
+import { auth } from "@clerk/tanstack-react-start/server";
+import { ConvexReactClient } from "convex/react";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
+import { ConvexQueryClient } from "@convex-dev/react-query";
 
 // devtools
 // import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
@@ -11,8 +21,40 @@ import Header from "../components/Header";
 
 import appCss from "../styles.css?url";
 
+// Server function to fetch Clerk auth and token for Convex
+const fetchClerkAuth = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const authState = await auth();
+    
+    // Only try to get token if user is authenticated
+    let token = null;
+    if (authState.userId) {
+      try {
+        token = await authState.getToken({ template: "convex" });
+      } catch (e) {
+        // Token template might not exist yet - that's ok
+        console.warn("Could not get Convex token:", e);
+      }
+    }
+
+    return {
+      userId: authState.userId,
+      token,
+    };
+  } catch (e) {
+    // Auth might fail during SSR or if not configured
+    console.warn("Auth check failed:", e);
+    return {
+      userId: null,
+      token: null,
+    };
+  }
+});
+
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
+  convexClient: ConvexReactClient;
+  convexQueryClient: ConvexQueryClient;
 }>()({
   head: () => ({
     meta: [
@@ -24,7 +66,7 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "TanStack Start Starter",
+        title: "Point My Story",
       },
     ],
     links: [
@@ -35,33 +77,70 @@ export const Route = createRootRouteWithContext<{
     ],
   }),
 
-  shellComponent: RootDocument,
+  beforeLoad: async (ctx) => {
+    const authResult = await fetchClerkAuth();
+    const { userId, token } = authResult;
+
+    // During SSR only (the only time serverHttpClient exists),
+    // set the Clerk auth token to make HTTP queries with.
+    if (token && ctx.context.convexQueryClient?.serverHttpClient) {
+      ctx.context.convexQueryClient.serverHttpClient.setAuth(token);
+    }
+
+    return {
+      userId,
+      token,
+    };
+  },
+
+  component: RootComponent,
+  shellComponent: RootShell,
 });
+
+function RootComponent() {
+  const context = useRouteContext({ from: Route.id });
+
+  return (
+    <ClerkProvider>
+      <ConvexProviderWithClerk client={context.convexClient} useAuth={useAuth}>
+        <RootDocument>
+          <Outlet />
+        </RootDocument>
+      </ConvexProviderWithClerk>
+    </ClerkProvider>
+  );
+}
+
+function RootShell({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <head>
-          <HeadContent />
-        </head>
-        <body>
-          <Header />
-          {children}
-          {/* <TanStackDevtools
-            config={{
-              position: "bottom-right",
-            }}
-            plugins={[
-              {
-                name: "Tanstack Router",
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-            ]}
-          /> */}
-          <Scripts />
-        </body>
-      </html>
-    </ClerkProvider>
+    <>
+      <Header />
+      {children}
+      {/* <TanStackDevtools
+        config={{
+          position: "bottom-right",
+        }}
+        plugins={[
+          {
+            name: "Tanstack Router",
+            render: <TanStackRouterDevtoolsPanel />,
+          },
+        ]}
+      /> */}
+    </>
   );
 }
