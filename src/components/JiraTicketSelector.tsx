@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink } from "lucide-react";
 import { useDebounce } from "@/lib/useDebounce";
 
 interface JiraResource {
@@ -193,18 +193,8 @@ export function JiraTicketSelector({
     }, 0);
   }, []);
 
-  // Show error if resources failed to load
-  if (resourcesError) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="w-4 h-4" />
-        <AlertDescription>{resourcesError}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  // Return null if no Atlassian account connected (don't show anything, let manual input be used)
-  if (!isLoadingResources && resources.length === 0 && !resourcesError) {
+  // Return null if no Atlassian account connected or if there's an error (don't show anything, let manual input be used)
+  if (resourcesError || (!isLoadingResources && resources.length === 0)) {
     return null;
   }
 

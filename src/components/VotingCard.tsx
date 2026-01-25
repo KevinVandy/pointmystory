@@ -11,6 +11,14 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 
+interface JiraResource {
+  cloudId: string;
+  name: string;
+  url: string;
+  scopes: string[];
+  avatarUrl?: string;
+}
+
 interface VotingCardProps {
   roomId: Id<"rooms">;
   currentStory?: string;
@@ -181,6 +189,37 @@ export function VotingCard({
   onVote,
   demoSessionId,
 }: VotingCardProps) {
+  const getAccessibleResources = useAction(api.jira.getAccessibleResources);
+  const [jiraResources, setJiraResources] = useState<JiraResource[]>([]);
+
+  // Fetch Jira resources to get site URLs
+  useEffect(() => {
+    let cancelled = false;
+    getAccessibleResources({})
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success && result.resources) {
+          setJiraResources(result.resources);
+        }
+      })
+      .catch(() => {
+        // Silently fail - if resources can't be fetched, we just won't show links
+        if (!cancelled) {
+          setJiraResources([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessibleResources]);
+
+  // Helper function to get Jira URL from cloudId
+  const getJiraUrl = (cloudId: string, ticketNumber: string): string | null => {
+    const resource = jiraResources.find((r) => r.cloudId === cloudId);
+    if (!resource) return null;
+    return `${resource.url}/browse/${ticketNumber}`;
+  };
+
   const displayStory = currentRoundName || currentStory || currentTicketNumber;
   const displayTicketNumber = currentTicketNumber;
 
@@ -204,17 +243,23 @@ export function VotingCard({
                         <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
                           {displayTicketNumber}
                         </span>
-                        {jiraCloudId && (
-                          <a
-                            href={`https://api.atlassian.com/ex/jira/${jiraCloudId}/browse/${displayTicketNumber}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-primary hover:underline flex items-center gap-1"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            View in Jira
-                          </a>
-                        )}
+                        {jiraCloudId && (() => {
+                          const jiraUrl = getJiraUrl(jiraCloudId, displayTicketNumber);
+                          if (jiraUrl) {
+                            return (
+                              <a
+                                href={jiraUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline flex items-center gap-1"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                View in Jira
+                              </a>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     )}
                 </div>

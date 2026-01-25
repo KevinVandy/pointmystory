@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Rooms table - represents a planning poker session
+  // Rooms table - represents a story pointing session
   rooms: defineTable({
     name: v.string(),
     hostId: v.string(), // Clerk user ID of the room creator

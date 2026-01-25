@@ -1,6 +1,6 @@
 import * as React from "react";
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
@@ -24,7 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ChevronDown, ChevronRight, Edit2, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Edit2, User, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Type for round data from the API
@@ -33,6 +33,7 @@ interface Round {
   roomId: Id<"rooms">;
   name?: string;
   ticketNumber?: string;
+  jiraCloudId?: string;
   createdAt: number;
   revealedAt?: number;
   isRevealed: boolean;
@@ -144,6 +145,14 @@ function roundToNearestPointScale(
   return pointScale.includes(closestStr) ? closestStr : closest.toFixed(1);
 }
 
+interface JiraResource {
+  cloudId: string;
+  name: string;
+  url: string;
+  scopes: string[];
+  avatarUrl?: string;
+}
+
 export function RoundHistoryTable({
   roomId,
   isAdmin,
@@ -153,6 +162,39 @@ export function RoundHistoryTable({
   demoSessionId,
 }: RoundHistoryTableProps) {
   const rounds = useQuery(api.rounds.listByRoom, { roomId });
+  const getAccessibleResources = useAction(api.jira.getAccessibleResources);
+  const [jiraResources, setJiraResources] = React.useState<JiraResource[]>([]);
+
+  // Fetch Jira resources to get site URLs
+  useEffect(() => {
+    let cancelled = false;
+    getAccessibleResources({})
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success && result.resources) {
+          setJiraResources(result.resources);
+        }
+      })
+      .catch(() => {
+        // Silently fail - if resources can't be fetched, we just won't show links
+        if (!cancelled) {
+          setJiraResources([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAccessibleResources]);
+
+  // Helper function to get Jira URL from cloudId
+  const getJiraUrl = React.useCallback(
+    (cloudId: string, ticketNumber: string): string | null => {
+      const resource = jiraResources.find((r) => r.cloudId === cloudId);
+      if (!resource) return null;
+      return `${resource.url}/browse/${ticketNumber}`;
+    },
+    [jiraResources],
+  );
 
   // Filter to show all revealed rounds (completed rounds)
   // Include the current round if it's been revealed
@@ -191,20 +233,54 @@ export function RoundHistoryTable({
       {
         accessorKey: "name",
         header: "Ticket",
-        cell: ({ row }) => (
-          <span className="truncate max-w-[150px] block">
-            {row.original.name || "-"}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const ticketName = row.original.name || "-";
+          return (
+            <span
+              className="truncate max-w-[150px] block"
+              title={ticketName !== "-" ? ticketName : undefined}
+            >
+              {ticketName}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "ticketNumber",
         header: "Ticket #",
-        cell: ({ row }) => (
-          <span className="font-mono text-xs">
-            {row.original.ticketNumber || "-"}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const ticketNumber = row.original.ticketNumber;
+          const jiraCloudId = row.original.jiraCloudId;
+          
+          if (!ticketNumber) {
+            return <span className="font-mono text-xs">-</span>;
+          }
+          
+          // If there's a jiraCloudId, try to make it a link
+          if (jiraCloudId) {
+            const jiraUrl = getJiraUrl(jiraCloudId, ticketNumber);
+            if (jiraUrl) {
+              return (
+                <a
+                  href={jiraUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-xs text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  {ticketNumber}
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              );
+            }
+          }
+          
+          // Otherwise, just display the ticket number
+          return (
+            <span className="font-mono text-xs">
+              {ticketNumber}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "finalScore",
@@ -271,7 +347,7 @@ export function RoundHistoryTable({
         },
       },
     ],
-    [isAdmin, pointScalePreset, pointScale, demoSessionId],
+    [isAdmin, pointScalePreset, pointScale, demoSessionId, getJiraUrl],
   );
 
   const table = useReactTable({

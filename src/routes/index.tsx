@@ -58,7 +58,7 @@ function Home() {
               Point My Story
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Real-time sprint planning poker for agile teams. Estimate stories
+              Real-time sprint story pointing for agile teams. Estimate stories
               together, reveal votes instantly, and reach consensus faster.
             </p>
           </div>
@@ -146,7 +146,7 @@ function GetStartedCard() {
       <CardHeader className="text-center">
         <CardTitle>Get Started</CardTitle>
         <CardDescription>
-          Sign in to create or join a planning poker room
+          Sign in to create or join a story pointing room
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

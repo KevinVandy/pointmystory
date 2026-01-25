@@ -1,4 +1,4 @@
-// Point scale presets for planning poker
+// Point scale presets for story pointing
 
 export const POINT_SCALE_PRESETS = {
   fibonacci: ["0.5", "1", "2", "3", "5", "8", "13", "21", "?"],

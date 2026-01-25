@@ -98,7 +98,7 @@ export function CreateRoomForm() {
         </div>
         <CardTitle>Create a Planning Room</CardTitle>
         <CardDescription>
-          Start a new sprint planning poker session and invite your team
+          Start a new sprint story pointing session and invite your team
         </CardDescription>
       </CardHeader>
       <CardContent>
