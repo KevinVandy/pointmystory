@@ -215,6 +215,13 @@ function RoomPage() {
     });
   };
 
+  const handleStartTimer = () => {
+    startTimerMutation({
+      roomId: roomId as Id<"rooms">,
+      demoSessionId: isDemoRoom ? (demoSessionId ?? undefined) : undefined,
+    });
+  };
+
   const handleStopTimer = () => {
     stopTimerMutation({
       roomId: roomId as Id<"rooms">,
@@ -389,6 +396,7 @@ function RoomPage() {
                 }
                 timerEndsAt={room.timerEndsAt}
                 timerStartedAt={room.timerStartedAt}
+                onStartTimer={handleStartTimer}
                 onStopTimer={handleStopTimer}
                 currentRoundId={currentRound?._id}
                 currentRoundAverageScore={currentRound?.averageScore}

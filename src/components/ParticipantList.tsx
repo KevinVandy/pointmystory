@@ -1,4 +1,4 @@
-import { Eye, TimerOff, Clock } from "lucide-react";
+import { Eye, TimerOff, Timer, Clock } from "lucide-react";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "./ui/button";
 import { NewRoundDialog } from "./NewRoundDialog";
@@ -33,6 +33,7 @@ interface ParticipantListProps {
   timerEndsAt?: number | null;
   timerStartedAt?: number | null;
   onStopTimer?: () => void;
+  onStartTimer?: () => void;
   currentRoundId?: Id<"rounds"> | null;
   currentRoundAverageScore?: number | null;
   currentRoundMedianScore?: number | null;
@@ -57,6 +58,7 @@ export function ParticipantList({
   timerEndsAt,
   timerStartedAt,
   onStopTimer,
+  onStartTimer,
   currentRoundId,
   currentRoundAverageScore,
   currentRoundMedianScore,
@@ -88,17 +90,31 @@ export function ParticipantList({
             <span>--:--</span>
           </div>
         )}
-        {/* Stop Timer Button - always rendered for hosts to prevent layout shift, disabled when not applicable */}
+        {/* Timer Control Button - Start or Stop based on timer state */}
         {isHost && (
-          <Button
-            variant="outline"
-            onClick={onStopTimer}
-            disabled={!isTimerRunning || !onStopTimer || isClosed || isRevealed}
-            className="gap-2 w-full"
-          >
-            <TimerOff className="w-4 h-4" />
-            Stop Timer
-          </Button>
+          <>
+            {isTimerRunning ? (
+              <Button
+                variant="outline"
+                onClick={onStopTimer}
+                disabled={!onStopTimer || isClosed || isRevealed}
+                className="gap-2 w-full"
+              >
+                <TimerOff className="w-4 h-4" />
+                Stop Timer
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={onStartTimer}
+                disabled={!onStartTimer || isClosed || isRevealed}
+                className="gap-2 w-full"
+              >
+                <Timer className="w-4 h-4" />
+                Start Timer
+              </Button>
+            )}
+          </>
         )}
       </div>
 
