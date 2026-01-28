@@ -111,12 +111,32 @@ function RootComponent() {
   const context = useRouteContext({ from: Route.id });
 
   // Get publishable key from environment variable
-  // Explicitly passing this ensures Clerk uses the correct instance
-  // and prevents issues with custom domain configurations
   const publishableKey = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KEY;
 
+  // Debug: Log the publishable key to verify it's being loaded correctly
+  console.log(
+    "[Clerk Debug] Publishable Key:",
+    publishableKey?.substring(0, 20) + "...",
+  );
+
+  // Explicitly set frontendApi to override custom domain configuration
+  // This forces Clerk to use the standard CDN instead of custom domain
+  // Set VITE_CLERK_FRONTEND_API in Netlify to your Clerk instance domain
+  // Format: <instance-name>.clerk.accounts.dev (e.g., enhanced-redbird-51.clerk.accounts.dev)
+  // You can find this in Clerk Dashboard under API Keys -> Frontend API
+  const frontendApi = (import.meta as any).env.VITE_CLERK_FRONTEND_API;
+
+  // Debug: Log the frontend API being used
+  console.log(
+    "[Clerk Debug] Frontend API:",
+    frontendApi || "Not set (will use default/custom domain)",
+  );
+
   return (
-    <ClerkProvider publishableKey={publishableKey}>
+    <ClerkProvider
+      publishableKey={publishableKey}
+      {...(frontendApi && { frontendApi })}
+    >
       <ConvexProviderWithClerk client={context.convexClient} useAuth={useAuth}>
         <ThemeWrapper>
           <RootDocument>
