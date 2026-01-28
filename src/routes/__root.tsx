@@ -110,8 +110,13 @@ export const Route = createRootRouteWithContext<{
 function RootComponent() {
   const context = useRouteContext({ from: Route.id });
 
+  // Get publishable key from environment variable
+  // Explicitly passing this ensures Clerk uses the correct instance
+  // and prevents issues with custom domain configurations
+  const publishableKey = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KEY;
+
   return (
-    <ClerkProvider>
+    <ClerkProvider publishableKey={publishableKey}>
       <ConvexProviderWithClerk client={context.convexClient} useAuth={useAuth}>
         <ThemeWrapper>
           <RootDocument>
