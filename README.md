@@ -18,6 +18,7 @@ A real-time sprint story pointing application for agile teams. Estimate stories 
 ## Tech Stack
 
 ### Frontend & Framework
+
 - **[TanStack Start](https://tanstack.com/start/latest)** - Full-stack React framework providing:
   - File-based routing with TanStack Router
   - Server-side rendering (SSR) support
@@ -28,6 +29,7 @@ A real-time sprint story pointing application for agile teams. Estimate stories 
 - **[TanStack Router](https://tanstack.com/router/latest)** - Type-safe routing with file-based route generation
 
 ### Backend & Database
+
 - **[Convex](https://www.convex.dev/)** - Backend-as-a-Service providing:
   - Real-time database with automatic reactivity
   - Serverless functions (queries, mutations, actions)
@@ -36,6 +38,7 @@ A real-time sprint story pointing application for agile teams. Estimate stories 
   - Real-time subscriptions for live updates
 
 ### Authentication & User Management
+
 - **[Clerk](https://clerk.com/)** - Complete authentication solution:
   - User authentication and session management
   - OAuth provider integration (including Atlassian for Jira)
@@ -43,11 +46,13 @@ A real-time sprint story pointing application for agile teams. Estimate stories 
   - User profiles and avatars
 
 ### UI & Styling
+
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[shadcn/ui](https://ui.shadcn.com/)** - High-quality React component library
 - **[Lucide React](https://lucide.dev/)** - Beautiful icon library
 
 ### Development Tools
+
 - **[Vite](https://vitejs.dev/)** - Fast build tool and dev server
 - **[TypeScript](https://www.typescriptlang.org/)** - Type-safe JavaScript
 - **[Vitest](https://vitest.dev/)** - Fast unit test framework
@@ -65,12 +70,14 @@ A real-time sprint story pointing application for agile teams. Estimate stories 
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd pointmystory
 ```
 
 2. Install dependencies:
+
 ```bash
 pnpm install
 ```
@@ -78,6 +85,7 @@ pnpm install
 3. Set up environment variables:
    - Create a `.env.local` file in the root directory
    - Add your Convex deployment URL and Clerk keys:
+
    ```
    VITE_CONVEX_URL=your-convex-deployment-url
    VITE_CLERK_PUBLISHABLE_KEY=your-clerk-publishable-key
@@ -94,6 +102,7 @@ pnpm install
    - Add your Clerk keys to environment variables
 
 6. Start the development server:
+
 ```bash
 pnpm dev
 ```
@@ -132,19 +141,25 @@ pointmystory/
 ## Key Concepts
 
 ### Rooms
+
 A room represents a story pointing session. Rooms can be public or private, and have configurable point scales, timers, and settings.
 
 ### Rounds
+
 Each round represents a single story/ticket being estimated. Participants vote, votes are revealed simultaneously, and admins can set final scores.
 
 ### Participants
+
 Users who join a room can be:
+
 - **Voters** - Can cast votes on stories
 - **Observers** - Can watch but not vote
 - **Admins** - Can manage room settings, participants, and set final scores
 
 ### Point Scales
+
 Multiple preset scales are available:
+
 - Fibonacci (1, 2, 3, 5, 8, 13, 21, ...)
 - T-shirt sizes (XS, S, M, L, XL, XXL)
 - Powers of 2 (1, 2, 4, 8, 16, ...)
@@ -171,3 +186,5 @@ This project is configured for deployment on Netlify with the `@netlify/vite-plu
 - [Clerk Documentation](https://clerk.com/docs)
 - [TanStack Router Documentation](https://tanstack.com/router/latest)
 - [TanStack Query Documentation](https://tanstack.com/query/latest)
+
+<!-- Use the FORCE, LUKE! -->
