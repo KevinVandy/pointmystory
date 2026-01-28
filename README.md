@@ -187,4 +187,4 @@ This project is configured for deployment on Netlify with the `@netlify/vite-plu
 - [TanStack Router Documentation](https://tanstack.com/router/latest)
 - [TanStack Query Documentation](https://tanstack.com/query/latest)
 
-<!-- Use the FORCE, LUKE! -->
+<!-- Use the FORCE LUKE! -->
