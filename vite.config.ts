@@ -27,7 +27,16 @@ const config = defineConfig({
       projects: ['./tsconfig.json'],
     }),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      prerender: {
+        enabled: true,
+        crawlLinks: true, // Discovers all linkable pages
+      },
+      sitemap: {
+        enabled: process.env.NODE_ENV === 'production' && process.env.SITE_URL === 'https://pointmystory.com',
+        host: process.env.SITE_URL, // Can be overridden with SITE_URL env var
+      },
+    }),
     netlify(),
     viteReact(),
   ],

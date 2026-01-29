@@ -2,6 +2,14 @@
   "name": "pointmystory",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KevinVandy/pointmystory"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/KevinVandy"
+  },
   "scripts": {
     "dev": "vite dev --port 3456",
     "build": "vite build",

@@ -19,9 +19,9 @@ import { ConvexQueryClient } from "@convex-dev/react-query";
 // import { TanStackDevtools } from "@tanstack/react-devtools";
 
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 import { ThemeProvider } from "../components/ThemeProvider";
 import { Toaster } from "sonner";
-import { RejoinRoomAlert } from "../components/RejoinRoomAlert";
 
 import appCss from "../styles.css?url";
 
@@ -82,6 +82,20 @@ export const Route = createRootRouteWithContext<{
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg",
+      },
+      {
+        rel: "icon",
+        type: "image/png",
+        href: "/favicon.png",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/logo192.png",
       },
     ],
   }),
@@ -157,8 +171,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header />
-      <RejoinRoomAlert />
-      <main className="pb-64">
+      <main className="pb-64 min-h-[calc(100vh-80px)]">
         <Suspense
           fallback={
             <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
@@ -169,6 +182,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           {children}
         </Suspense>
       </main>
+      <Footer />
       <Toaster position="bottom-right" />
       {/* <TanStackDevtools
         config={{

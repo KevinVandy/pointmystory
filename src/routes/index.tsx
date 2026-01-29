@@ -17,13 +17,14 @@ import { Button } from "@/components/ui/button";
 import {
   Users,
   Zap,
-  Eye,
   Timer,
   BarChart3,
-  Settings,
   Globe,
   History,
   Play,
+  Eye,
+  Settings,
+  Plug2,
 } from "lucide-react";
 import { RoomMembershipTable } from "@/components/RoomMembershipTable";
 import { useMutation } from "convex/react";
@@ -32,6 +33,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { setDemoSessionId } from "@/lib/demoSession";
 import { HomePageSkeleton } from "@/components/HomePageSkeleton";
+import { RejoinRoomAlert } from "@/components/RejoinRoomAlert";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -40,7 +42,8 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-[calc(100vh-80px)] bg-linear-to-b from-background to-muted/20">
+      <RejoinRoomAlert />
       <div className="container mx-auto px-4 py-12">
         {/* Signed In Users - Just show functional content */}
         <SignedIn>
@@ -53,7 +56,7 @@ function Home() {
         {/* Signed Out Users - Show marketing content */}
         <SignedOut>
           {/* Hero Section */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Point My Story
             </h1>
@@ -63,53 +66,62 @@ function Home() {
             </p>
           </div>
 
-          {/* Features */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12">
-            <FeatureCard
-              icon={<Users className="w-6 h-6" />}
+          {/* Top 3 Featured Features */}
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
+            <FeaturedCard
+              icon={<Users className="w-8 h-8" />}
               title="Real-time Collaboration"
-              description="See when teammates join and vote in real-time with live updates"
+              description="See when teammates join and vote in real-time with live updates. Everyone stays in sync with instant notifications and live participant status."
             />
-            <FeatureCard
-              icon={<Zap className="w-6 h-6" />}
-              title="Instant Reveal"
-              description="Reveal all votes simultaneously to avoid anchoring bias"
-            />
-            <FeatureCard
-              icon={<BarChart3 className="w-6 h-6" />}
-              title="Multiple Point Scales"
-              description="Choose from Fibonacci, T-shirt sizes, Powers of 2, Hybrid, Linear, or create custom scales"
-            />
-            <FeatureCard
-              icon={<Timer className="w-6 h-6" />}
-              title="Voting Timer"
-              description="Set configurable timers (15 seconds to 10 minutes) to keep sessions on track"
-            />
-            <FeatureCard
-              icon={<Eye className="w-6 h-6" />}
-              title="Observer Mode"
-              description="Join as an observer to watch sessions without voting"
-            />
-            <FeatureCard
-              icon={<Globe className="w-6 h-6" />}
+            <FeaturedCard
+              icon={<Globe className="w-8 h-8" />}
               title="Public & Private Rooms"
-              description="Create private rooms for your team or public rooms for broader collaboration"
+              description="Create private rooms for your team or public rooms for broader collaboration. Control access and manage permissions with ease."
             />
-            <FeatureCard
-              icon={<History className="w-6 h-6" />}
-              title="Round History & Statistics"
-              description="Track all rounds with average, median, and vote breakdowns"
+            <FeaturedCard
+              icon={<Plug2 className="w-8 h-8" />}
+              title="Integrations"
+              description="Connect with Jira, Linear, GitHub, and more. Fetch tickets directly, link stories, and sync your workflow seamlessly."
             />
-            <FeatureCard
-              icon={<Settings className="w-6 h-6" />}
-              title="Admin Controls"
-              description="Manage participants, set final scores, and control room settings"
-            />
-            <FeatureCard
-              icon={<Users className="w-6 h-6" />}
-              title="Participant Management"
-              description="Promote team members to admin, track voting status, and manage roles"
-            />
+          </div>
+
+          {/* All Other Features */}
+          <div className="max-w-4xl mx-auto mb-12">
+            <h2 className="text-2xl font-semibold text-center mb-8">
+              Everything You Need
+            </h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <FeatureListItem
+                icon={<Zap className="w-5 h-5" />}
+                title="Instant Reveal"
+                description="Reveal all votes simultaneously to avoid anchoring bias"
+              />
+              <FeatureListItem
+                icon={<BarChart3 className="w-5 h-5" />}
+                title="Multiple Point Scales"
+                description="Fibonacci, T-shirt sizes, Powers of 2, Hybrid, Linear, or custom scales"
+              />
+              <FeatureListItem
+                icon={<Timer className="w-5 h-5" />}
+                title="Voting Timer"
+                description="Configurable timers from 15 seconds to 10 minutes"
+              />
+              <FeatureListItem
+                icon={<History className="w-5 h-5" />}
+                title="Round History & Statistics"
+                description="Track rounds with average, median, and vote breakdowns"
+              />
+              <FeatureListItem
+                icon={<Eye className="w-5 h-5" />}
+                title="Observer Mode"
+                description="Join as an observer to watch sessions without voting"
+              />
+              <FeatureListItem
+                icon={<Settings className="w-5 h-5" />}
+                title="Admin Controls"
+                description="Manage participants, set final scores, and control room settings"
+              />
+            </div>
           </div>
 
           {/* Sign In Card */}
@@ -172,7 +184,7 @@ function GetStartedCard() {
   );
 }
 
-function FeatureCard({
+function FeaturedCard({
   icon,
   title,
   description,
@@ -182,12 +194,36 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="text-center p-6">
-      <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 text-primary">
+    <Card className="h-full">
+      <CardHeader>
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 text-primary">
+          {icon}
+        </div>
+        <CardTitle className="text-xl mb-2">{title}</CardTitle>
+        <CardDescription className="text-base">{description}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function FeatureListItem({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 p-4 rounded-lg hover:bg-muted/50 transition-colors">
+      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 mt-0.5">
         {icon}
       </div>
-      <h3 className="font-semibold mb-2">{title}</h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
+      <div>
+        <h3 className="font-semibold mb-1">{title}</h3>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
     </div>
   );
 }
