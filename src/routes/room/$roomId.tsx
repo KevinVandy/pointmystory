@@ -7,12 +7,12 @@ import { useUser, SignInButton } from "@clerk/tanstack-react-start";
 import { ParticipantList } from "@/components/ParticipantList";
 import { RoomControls } from "@/components/RoomControls";
 import { RoomSettings } from "@/components/RoomSettings";
-import { VotingTimer } from "@/components/VotingTimer";
 import { RoundHistoryTable } from "@/components/RoundHistoryTable";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Globe, Lock, LogIn, AlertCircle, Clock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip } from "@/components/ui/tooltip";
 import { getDemoSessionId } from "@/lib/demoSession";
 import { VotingCard } from "@/components/VotingCard";
 import { RoomPageSkeleton } from "@/components/RoomPageSkeleton";
@@ -239,7 +239,7 @@ function RoomPage() {
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-linear-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 pt-6 pb-100">
+      <div className="container mx-auto px-4 pt-8 pb-100">
         {/* Demo room indicator */}
         {isDemoRoom && (
           <Alert className="mb-4">
@@ -257,14 +257,6 @@ function RoomPage() {
               . Demo rooms cannot be reopened.
             </AlertDescription>
           </Alert>
-        )}
-
-        {/* Public room indicator */}
-        {isPublicRoom && !isDemoRoom && (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-4">
-            <Globe className="w-4 h-4" />
-            <span>Public Room</span>
-          </div>
         )}
 
         {/* Closed Room Alert */}
@@ -314,23 +306,18 @@ function RoomPage() {
                 )}
               </h2>
               {isPublicRoom ? (
-                <Globe className="w-5 h-5 text-muted-foreground" />
+                <Tooltip content="Public Room" side="bottom">
+                  <Globe className="w-5 h-5 text-muted-foreground" />
+                </Tooltip>
               ) : (
-                <Lock className="w-5 h-5 text-muted-foreground" />
+                <Tooltip content="Private Room" side="bottom">
+                  <Lock className="w-5 h-5 text-muted-foreground" />
+                </Tooltip>
               )}
             </div>
             {room.currentStory && (
               <p className="text-muted-foreground mt-2">{room.currentStory}</p>
             )}
-            {/* Show timer for read-only viewers if active - reserve space to prevent layout shift */}
-            <div className="mt-4 min-h-[48px] flex justify-center items-center">
-              {room.timerEndsAt && room.timerStartedAt && (
-                <VotingTimer
-                  timerEndsAt={room.timerEndsAt}
-                  timerStartedAt={room.timerStartedAt}
-                />
-              )}
-            </div>
           </div>
         )}
 
@@ -396,7 +383,7 @@ function RoomPage() {
           </div>
 
           {/* Participants Sidebar */}
-          <Card className="order-2 lg:order-2 lg:w-[360px] lg:flex-shrink-0">
+          <Card className="order-2 lg:order-2 lg:w-[360px] lg:shrink-0">
             <CardContent className="pt-6">
               <ParticipantList
                 participants={participantsWithVotes}

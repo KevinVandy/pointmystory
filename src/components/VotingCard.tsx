@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, LogIn, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import {
+  FileText,
+  LogIn,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+} from "lucide-react";
 import { SignInButton } from "@clerk/tanstack-react-start";
 import { NewRoundDialog } from "./NewRoundDialog";
 import { VotingCardGrid } from "./VotingChoiceButton";
@@ -54,7 +60,7 @@ function extractTextFromADF(adf: any): string {
   if (!adf || typeof adf !== "object") {
     return "";
   }
-  
+
   // If it's an ADF document, extract text from content
   if (adf.content && Array.isArray(adf.content)) {
     return adf.content
@@ -70,7 +76,7 @@ function extractTextFromADF(adf: any): string {
       .join("")
       .trim();
   }
-  
+
   return "";
 }
 
@@ -82,7 +88,9 @@ function JiraIssueDescription({
   cloudId: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [issueDetails, setIssueDetails] = useState<JiraIssueDetails | null>(null);
+  const [issueDetails, setIssueDetails] = useState<JiraIssueDetails | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const getIssue = useAction(api.jira.getIssue);
@@ -107,7 +115,15 @@ function JiraIssueDescription({
           setIsLoading(false);
         });
     }
-  }, [isExpanded, cloudId, ticketNumber, getIssue, issueDetails, isLoading, error]);
+  }, [
+    isExpanded,
+    cloudId,
+    ticketNumber,
+    getIssue,
+    issueDetails,
+    isLoading,
+    error,
+  ]);
 
   if (!ticketNumber || !cloudId) return null;
 
@@ -148,7 +164,8 @@ function JiraIssueDescription({
                 <div>
                   <h4 className="font-medium mb-1">Description</h4>
                   <div className="text-muted-foreground whitespace-pre-wrap bg-muted/50 rounded-lg p-3">
-                    {extractTextFromADF(issueDetails.description) || "No description available"}
+                    {extractTextFromADF(issueDetails.description) ||
+                      "No description available"}
                   </div>
                 </div>
               )}
@@ -225,16 +242,18 @@ export function VotingCard({
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="">
         {/* Header section with story info and Set Story button */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+        <div className="flex items-start justify-between gap-4 mb-6">
           {/* Story/Ticket Info */}
           {displayStory && (
             <div className="flex-1 min-w-0">
               <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground mb-1">Voting on</p>
-                  <h3 className="text-lg font-semibold break-words">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Voting on
+                  </p>
+                  <h3 className="text-lg font-semibold wrap-break-word">
                     {displayStory}
                   </h3>
                   {displayTicketNumber &&
@@ -243,23 +262,27 @@ export function VotingCard({
                         <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
                           {displayTicketNumber}
                         </span>
-                        {jiraCloudId && (() => {
-                          const jiraUrl = getJiraUrl(jiraCloudId, displayTicketNumber);
-                          if (jiraUrl) {
-                            return (
-                              <a
-                                href={jiraUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline flex items-center gap-1"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                View in Jira
-                              </a>
+                        {jiraCloudId &&
+                          (() => {
+                            const jiraUrl = getJiraUrl(
+                              jiraCloudId,
+                              displayTicketNumber,
                             );
-                          }
-                          return null;
-                        })()}
+                            if (jiraUrl) {
+                              return (
+                                <a
+                                  href={jiraUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  View in Jira
+                                </a>
+                              );
+                            }
+                            return null;
+                          })()}
                       </div>
                     )}
                 </div>
@@ -269,7 +292,7 @@ export function VotingCard({
 
           {/* Set Story Button */}
           {isAdmin && !isClosed && !isRevealed && (
-            <div className="shrink-0">
+            <div className="shrink-0 ml-auto">
               <NewRoundDialog
                 roomId={roomId}
                 mode="setStory"

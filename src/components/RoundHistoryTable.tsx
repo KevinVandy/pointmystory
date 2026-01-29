@@ -7,8 +7,11 @@ import {
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
   useReactTable,
   type ColumnDef,
+  type SortingState,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -19,12 +22,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ChevronDown, ChevronRight, Edit2, User, ExternalLink } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Edit2,
+  User,
+  ExternalLink,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Search,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Type for round data from the API
@@ -164,6 +178,8 @@ export function RoundHistoryTable({
   const rounds = useQuery(api.rounds.listByRoom, { roomId });
   const getAccessibleResources = useAction(api.jira.getAccessibleResources);
   const [jiraResources, setJiraResources] = React.useState<JiraResource[]>([]);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = React.useState("");
 
   // Fetch Jira resources to get site URLs
   useEffect(() => {
@@ -229,6 +245,7 @@ export function RoundHistoryTable({
         cell: ({ row }) => (
           <span className="font-medium">{row.original.roundNumber}</span>
         ),
+        enableSorting: true,
       },
       {
         accessorKey: "name",
@@ -244,6 +261,7 @@ export function RoundHistoryTable({
             </span>
           );
         },
+        enableSorting: true,
       },
       {
         accessorKey: "ticketNumber",
@@ -251,11 +269,11 @@ export function RoundHistoryTable({
         cell: ({ row }) => {
           const ticketNumber = row.original.ticketNumber;
           const jiraCloudId = row.original.jiraCloudId;
-          
+
           if (!ticketNumber) {
             return <span className="font-mono text-xs">-</span>;
           }
-          
+
           // If there's a jiraCloudId, try to make it a link
           if (jiraCloudId) {
             const jiraUrl = getJiraUrl(jiraCloudId, ticketNumber);
@@ -273,14 +291,11 @@ export function RoundHistoryTable({
               );
             }
           }
-          
+
           // Otherwise, just display the ticket number
-          return (
-            <span className="font-mono text-xs">
-              {ticketNumber}
-            </span>
-          );
+          return <span className="font-mono text-xs">{ticketNumber}</span>;
         },
+        enableSorting: true,
       },
       {
         accessorKey: "finalScore",
@@ -309,6 +324,12 @@ export function RoundHistoryTable({
             : value.toFixed(1);
           return <span className="text-muted-foreground">{displayValue}</span>;
         },
+        enableSorting: true,
+        sortingFn: (rowA, rowB) => {
+          const a = rowA.original.averageScore ?? -Infinity;
+          const b = rowB.original.averageScore ?? -Infinity;
+          return a - b;
+        },
       },
       {
         accessorKey: "medianScore",
@@ -324,6 +345,12 @@ export function RoundHistoryTable({
             : value.toString();
           return <span className="text-muted-foreground">{displayValue}</span>;
         },
+        enableSorting: true,
+        sortingFn: (rowA, rowB) => {
+          const a = rowA.original.medianScore ?? -Infinity;
+          const b = rowB.original.medianScore ?? -Infinity;
+          return a - b;
+        },
       },
       {
         accessorKey: "unsureCount",
@@ -333,6 +360,7 @@ export function RoundHistoryTable({
             {row.original.unsureCount ?? 0}
           </span>
         ),
+        enableSorting: true,
       },
       {
         accessorKey: "revealedAt",
@@ -341,10 +369,11 @@ export function RoundHistoryTable({
           if (!row.original.revealedAt) return "-";
           return (
             <span className="text-xs text-muted-foreground">
-              {new Date(row.original.revealedAt).toLocaleDateString()}
+              {new Date(row.original.revealedAt).toLocaleString()}
             </span>
           );
         },
+        enableSorting: true,
       },
     ],
     [isAdmin, pointScalePreset, pointScale, demoSessionId, getJiraUrl],
@@ -353,9 +382,37 @@ export function RoundHistoryTable({
   const table = useReactTable({
     data: completedRounds,
     columns,
+    state: {
+      sorting,
+      globalFilter,
+    },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getRowCanExpand: () => true,
+    globalFilterFn: (row, _, filterValue) => {
+      const search = filterValue.toLowerCase();
+      const round = row.original;
+
+      // Search across multiple fields
+      const searchableFields = [
+        round.name || "",
+        round.ticketNumber || "",
+        round.finalScore || "",
+        round.roundNumber?.toString() || "",
+        round.averageScore?.toString() || "",
+        round.medianScore?.toString() || "",
+        round.unsureCount?.toString() || "",
+        round.revealedAt ? new Date(round.revealedAt).toLocaleString() : "",
+      ];
+
+      return searchableFields.some((field) =>
+        field.toLowerCase().includes(search),
+      );
+    },
   });
 
   if (!rounds) {
@@ -364,24 +421,65 @@ export function RoundHistoryTable({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-medium text-muted-foreground">
-        Round History ({completedRounds.length})
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          Round History ({table.getFilteredRowModel().rows.length})
+        </h3>
+        <div className="relative w-64">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search rounds..."
+            value={globalFilter ?? ""}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+      </div>
       <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-xs">
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const canSort = header.column.getCanSort();
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        "text-xs",
+                        canSort &&
+                          "cursor-pointer select-none hover:bg-muted/50",
+                      )}
+                      onClick={() => {
+                        if (canSort) {
+                          header.column.toggleSorting(
+                            header.column.getIsSorted() === "asc",
+                          );
+                        }
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <div className="flex items-center gap-2">
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                          {canSort && (
+                            <span className="text-muted-foreground">
+                              {header.column.getIsSorted() === "asc" ? (
+                                <ArrowUp className="h-3 w-3" />
+                              ) : header.column.getIsSorted() === "desc" ? (
+                                <ArrowDown className="h-3 w-3" />
+                              ) : (
+                                <ArrowUpDown className="h-3 w-3 opacity-50" />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -462,7 +560,9 @@ function EditableFinalScore({
 
   // Use finalScore if set, otherwise use default
   const displayValue = round.finalScore || defaultScore || "-";
-  const [value, setValue] = useState((round.finalScore || defaultScore || "").toString());
+  const [value, setValue] = useState(
+    (round.finalScore || defaultScore || "").toString(),
+  );
 
   // Update local value when round changes
   React.useEffect(() => {
@@ -471,7 +571,11 @@ function EditableFinalScore({
 
   const handleSave = async (scoreValue?: string) => {
     // Use provided value, trimmed value, or default
-    const finalValue = (scoreValue || value.trim() || (defaultScore || "").toString()).toString();
+    const finalValue = (
+      scoreValue ||
+      value.trim() ||
+      (defaultScore || "").toString()
+    ).toString();
     if (finalValue) {
       try {
         await setFinalScore({

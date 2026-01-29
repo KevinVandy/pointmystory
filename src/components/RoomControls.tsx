@@ -6,6 +6,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "@tanstack/react-router";
 import { ParticipantTypeToggle } from "./ParticipantTypeToggle";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,10 +97,10 @@ export function RoomControls({
   return (
     <div className="space-y-4">
       {/* Room Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col items-center lg:flex-row lg:items-center lg:justify-between gap-4">
         {/* Room name - left */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 w-full lg:w-auto">
+          <div className="flex items-center justify-center lg:justify-start gap-2">
             <h2 className="text-2xl font-bold">
               {roomName ? (
                 roomName
@@ -110,15 +111,19 @@ export function RoomControls({
               )}
             </h2>
             {visibility === "public" ? (
-              <Globe className="w-5 h-5 text-muted-foreground" />
+              <Tooltip content="Public Room" side="bottom">
+                <Globe className="w-5 h-5 text-muted-foreground" />
+              </Tooltip>
             ) : (
-              <Lock className="w-5 h-5 text-muted-foreground" />
+              <Tooltip content="Private Room" side="bottom">
+                <Lock className="w-5 h-5 text-muted-foreground" />
+              </Tooltip>
             )}
           </div>
         </div>
 
         {/* Participant type toggle - center */}
-        <div className="flex items-center justify-center flex-1">
+        <div className="flex items-center justify-center lg:flex-1">
           {isAuthenticated && isParticipant && participantType && (
             <ParticipantTypeToggle
               roomId={roomId}
@@ -128,7 +133,7 @@ export function RoomControls({
         </div>
 
         {/* Action buttons - right */}
-        <div className="flex gap-2 flex-1 justify-end">
+        <div className="flex flex-wrap gap-2 justify-center lg:flex-1 lg:justify-end">
           <Button
             variant="outline"
             size="sm"

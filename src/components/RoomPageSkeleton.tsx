@@ -3,8 +3,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function RoomPageSkeleton() {
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-6">
+    <div className="min-h-[calc(100vh-80px)] bg-linear-to-b from-background to-muted/20">
+      <div className="container mx-auto px-4 pt-6 pb-100">
         {/* Alert skeleton */}
         <div className="mb-4">
           <Skeleton className="h-16 w-full" />
@@ -12,10 +12,20 @@ export function RoomPageSkeleton() {
 
         {/* Room Controls skeleton */}
         <div className="space-y-4 mb-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-32" />
-            <div className="flex gap-2">
+          <div className="flex flex-col items-center lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Room name */}
+            <div className="flex-1 min-w-0 w-full lg:w-auto">
+              <div className="flex items-center justify-center lg:justify-start gap-2">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-5 w-5 rounded" />
+              </div>
+            </div>
+            {/* Participant type toggle */}
+            <div className="flex items-center justify-center lg:flex-1">
+              <Skeleton className="h-10 w-32" />
+            </div>
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-2 justify-center lg:flex-1 lg:justify-end">
               <Skeleton className="h-10 w-24" />
               <Skeleton className="h-10 w-24" />
             </div>
@@ -23,9 +33,9 @@ export function RoomPageSkeleton() {
         </div>
 
         {/* Main Content */}
-        <div className="mt-8 flex flex-col lg:grid lg:grid-cols-[1fr_300px] gap-8">
-          {/* Voting Area */}
-          <div className="space-y-6 order-1">
+        <div className="mt-8 flex flex-col lg:flex-row gap-8">
+          {/* Left Column - Voting Card and Round History (stacked on desktop) */}
+          <div className="flex-1 flex flex-col gap-6 order-1 lg:order-1">
             {/* Voting Card skeleton */}
             <Card>
               <CardContent className="pt-4">
@@ -42,14 +52,16 @@ export function RoomPageSkeleton() {
               </CardContent>
             </Card>
 
-            {/* Round History Table skeleton */}
-            <div className="space-y-2">
-              <Skeleton className="h-5 w-32" />
-              <div className="overflow-hidden rounded-md border">
-                <div className="p-4 space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-2/3" />
+            {/* Round History Table skeleton - hidden on mobile (shown below participants via order-3) */}
+            <div className="hidden lg:block">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-32" />
+                <div className="overflow-hidden rounded-md border">
+                  <div className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -70,7 +82,7 @@ export function RoomPageSkeleton() {
           </div>
 
           {/* Participants Sidebar */}
-          <Card className="order-2">
+          <Card className="order-2 lg:order-2 lg:w-[360px] lg:shrink-0">
             <CardContent className="pt-6">
               <div className="space-y-4 -mt-6">
                 {/* Timer skeleton */}
@@ -96,8 +108,22 @@ export function RoomPageSkeleton() {
             </CardContent>
           </Card>
 
-          {/* Settings Panel skeleton (mobile) */}
+          {/* Round History Table skeleton - below participants on mobile */}
           <div className="order-3 lg:hidden">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <div className="overflow-hidden rounded-md border">
+                <div className="p-4 space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Settings Panel skeleton (mobile) */}
+          <div className="order-4 lg:hidden">
             <Card>
               <CardContent className="pt-6">
                 <Skeleton className="h-6 w-32 mb-4" />
