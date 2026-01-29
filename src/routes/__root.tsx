@@ -8,15 +8,15 @@ import {
 } from "@tanstack/react-router";
 import { Suspense } from "react";
 import { createServerFn } from "@tanstack/react-start";
-import { ClerkProvider, useAuth, useUser } from "@clerk/tanstack-react-start";
+import { ClerkProvider, useAuth } from "@clerk/tanstack-react-start";
 import { auth } from "@clerk/tanstack-react-start/server";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexQueryClient } from "@convex-dev/react-query";
 
 // devtools
-// import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-// import { TanStackDevtools } from "@tanstack/react-devtools";
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { TanStackDevtools } from "@tanstack/react-devtools";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -183,7 +183,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </main>
       <Footer />
       <Toaster position="bottom-right" />
-      {/* <TanStackDevtools
+      <TanStackDevtools
         config={{
           position: "bottom-right",
         }}
@@ -193,7 +193,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             render: <TanStackRouterDevtoolsPanel />,
           },
         ]}
-      /> */}
+      />
     </>
   );
 }
