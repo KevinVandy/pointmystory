@@ -41,6 +41,7 @@
     "lucide-react": "^0.563.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-rewards": "^2.1.0",
     "shadcn": "^3.7.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",

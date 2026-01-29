@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+import { useReward } from "react-rewards";
 import { Eye, TimerOff, Timer, Clock, RotateCcw } from "lucide-react";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "./ui/button";
@@ -77,8 +79,81 @@ export function ParticipantList({
 
   const isTimerRunning = timerEndsAt && timerStartedAt;
 
+  // Setup confetti reward for Yahtzee feature
+  const { reward } = useReward("yahtzee-confetti", "confetti", {
+    angle: 150,
+    position: "fixed",
+    zIndex: 9999,
+    elementCount: 200,
+    spread: 100,
+    startVelocity: 30,
+  });
+
+  // Track previous reveal state to detect transitions
+  const prevIsRevealedRef = useRef(isRevealed);
+  const confettiTriggeredRef = useRef(false);
+
+  // Check for Yahtzee condition when votes are revealed
+  useEffect(() => {
+    // Only trigger on transition from unrevealed to revealed
+    const wasRevealed = prevIsRevealedRef.current;
+    const isNowRevealed = isRevealed;
+
+    // Reset confetti trigger flag when votes become unrevealed (new round)
+    if (!isNowRevealed) {
+      confettiTriggeredRef.current = false;
+      prevIsRevealedRef.current = false;
+      return;
+    }
+
+    // If already revealed or already triggered confetti, skip
+    if (wasRevealed || confettiTriggeredRef.current) {
+      prevIsRevealedRef.current = isNowRevealed;
+      return;
+    }
+
+    // Check Yahtzee conditions: >=3 voters, all voted the same value
+    if (isNowRevealed && votes && votes.length > 0) {
+      // Get vote values from voters only (exclude observers)
+      const voterVotes = voters
+        .map(({ vote }) => vote?.value)
+        .filter(
+          (value): value is string =>
+            value !== null && value !== undefined && value !== "?",
+        );
+
+      // Check if we have >= 3 voters who voted
+      if (voterVotes.length >= 1) {
+        // Check if all votes are the same
+        const firstVote = voterVotes[0];
+        const allSame = voterVotes.every((vote) => vote === firstVote);
+
+        if (allSame) {
+          // Trigger confetti!
+          confettiTriggeredRef.current = true;
+          reward();
+        }
+      }
+    }
+
+    prevIsRevealedRef.current = isNowRevealed;
+  }, [isRevealed, votes, voters, reward]);
+
   return (
-    <div className="space-y-4 -mt-6">
+    <div className="space-y-4 -mt-6 relative">
+      {/* Confetti origin element - positioned at right edge of viewport, shooting left across entire page */}
+      <span
+        id="yahtzee-confetti"
+        style={{
+          position: "fixed",
+          right: "20vw",
+          top: "50vh",
+          width: 2,
+          height: 2,
+          pointerEvents: "none",
+          zIndex: 9999,
+        }}
+      />
       {/* Timer and Stop Timer Button - always rendered to prevent layout shift */}
       <div className="flex flex-col gap-2 pb-3 border-b min-h-[48px]">
         {isTimerRunning ? (
