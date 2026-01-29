@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Share2, LogOut, Lock, Unlock } from "lucide-react";
+import { Share2, LogOut, Lock, Unlock, Globe } from "lucide-react";
 import type { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { useMutation } from "convex/react";
@@ -33,6 +33,7 @@ interface RoomControlsProps {
   demoSessionId?: string;
   isParticipant?: boolean;
   participantType?: "voter" | "observer";
+  visibility?: "public" | "private";
 }
 
 export function RoomControls({
@@ -50,6 +51,7 @@ export function RoomControls({
   demoSessionId,
   isParticipant = false,
   participantType,
+  visibility = "private",
 }: RoomControlsProps) {
   const navigate = useNavigate();
   const leaveRoom = useMutation(api.participants.leave);
@@ -97,19 +99,31 @@ export function RoomControls({
       <div className="flex items-center justify-between flex-wrap gap-4">
         {/* Room name - left */}
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold">
-            {roomName ? (
-              roomName
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold">
+              {roomName ? (
+                roomName
+              ) : (
+                <span className="italic text-muted-foreground">
+                  Untitled Room
+                </span>
+              )}
+            </h2>
+            {visibility === "public" ? (
+              <Globe className="w-5 h-5 text-muted-foreground" />
             ) : (
-              <span className="italic text-muted-foreground">Untitled Room</span>
+              <Lock className="w-5 h-5 text-muted-foreground" />
             )}
-          </h1>
+          </div>
         </div>
 
         {/* Participant type toggle - center */}
         <div className="flex items-center justify-center flex-1">
           {isAuthenticated && isParticipant && participantType && (
-            <ParticipantTypeToggle roomId={roomId} currentType={participantType} />
+            <ParticipantTypeToggle
+              roomId={roomId}
+              currentType={participantType}
+            />
           )}
         </div>
 
@@ -164,10 +178,11 @@ export function RoomControls({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Close Room</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to close "{roomName || "Untitled Room"}"? Once
-                        closed, participants will not be able to vote or start
-                        new rounds, but they can still view the room. You can
-                        reopen it at any time.
+                        Are you sure you want to close "
+                        {roomName || "Untitled Room"}"? Once closed,
+                        participants will not be able to vote or start new
+                        rounds, but they can still view the room. You can reopen
+                        it at any time.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

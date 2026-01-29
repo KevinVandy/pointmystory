@@ -398,7 +398,11 @@ export function RoomSettings({
                     disabled={isSaving}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a point scale" />
+                      <SelectValue placeholder="Select a point scale">
+                        {PRESET_OPTIONS_WITH_CUSTOM.find(
+                          (opt) => opt.value === preset,
+                        )?.label || preset}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {PRESET_OPTIONS_WITH_CUSTOM.map((option) => (

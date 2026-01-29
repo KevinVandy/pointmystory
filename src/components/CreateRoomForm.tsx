@@ -28,7 +28,7 @@ import {
 } from "@clerk/tanstack-react-start";
 import { Users, Globe, Lock, Timer, Building2 } from "lucide-react";
 import {
-  PRESET_OPTIONS,
+  PRESET_OPTIONS_WITH_CUSTOM,
   DEFAULT_PRESET,
   PointScalePreset,
 } from "@/lib/pointScales";
@@ -43,6 +43,7 @@ export function CreateRoomForm() {
   const [roomName, setRoomName] = useState("");
   const [pointScalePreset, setPointScalePreset] =
     useState<PointScalePreset>(DEFAULT_PRESET);
+  const [customScale, setCustomScale] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [timerDuration, setTimerDuration] = useState(180);
   const [autoStartTimer, setAutoStartTimer] = useState(false);
@@ -82,9 +83,25 @@ export function CreateRoomForm() {
 
     setIsCreating(true);
     try {
+      // Parse custom scale if preset is custom
+      let pointScale: string[] | undefined;
+      if (pointScalePreset === "custom" && customScale.trim()) {
+        pointScale = customScale
+          .split(",")
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0);
+
+        if (pointScale.length === 0) {
+          // If custom is selected but no values provided, don't create room
+          setIsCreating(false);
+          return;
+        }
+      }
+
       const roomId = await createRoom({
         name: roomName.trim() || undefined,
         pointScalePreset,
+        pointScale,
         visibility,
         timerDurationSeconds: timerDuration,
         autoStartTimer,
@@ -99,7 +116,7 @@ export function CreateRoomForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-lg mx-auto">
       <CardHeader className="text-center">
         <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
           <Users className="w-6 h-6 text-primary" />
@@ -132,10 +149,14 @@ export function CreateRoomForm() {
               disabled={isCreating}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a point scale" />
+                <SelectValue placeholder="Select a point scale">
+                  {PRESET_OPTIONS_WITH_CUSTOM.find(
+                    (opt) => opt.value === pointScalePreset,
+                  )?.label || pointScalePreset}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {PRESET_OPTIONS.map((option) => (
+                {PRESET_OPTIONS_WITH_CUSTOM.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -143,6 +164,22 @@ export function CreateRoomForm() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Custom Scale Input */}
+          {pointScalePreset === "custom" && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Custom Values</Label>
+              <Input
+                value={customScale}
+                onChange={(e) => setCustomScale(e.target.value)}
+                placeholder="1, 2, 3, 5, 8, ?"
+                disabled={isCreating}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter comma-separated values
+              </p>
+            </div>
+          )}
 
           {/* Auto-reveal Votes Checkbox */}
           <div className="flex items-center space-x-2">

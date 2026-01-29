@@ -238,7 +238,7 @@ function RoomPage() {
   const isReadOnlyViewer = !isAuthenticated && isPublicRoom && !isDemoRoomAdmin;
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-[calc(100vh-80px)] bg-linear-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 pt-6 pb-100">
         {/* Demo room indicator */}
         {isDemoRoom && (
@@ -296,21 +296,29 @@ function RoomPage() {
             demoSessionId={demoSessionId ?? undefined}
             isParticipant={isParticipant}
             participantType={participantType}
+            visibility={room.visibility ?? "private"}
           />
         )}
 
         {/* Read-only header for unauthenticated users */}
         {isReadOnlyViewer && (
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold">
-              {room.name ? (
-                room.name
+            <div className="flex items-center justify-center gap-2">
+              <h2 className="text-2xl font-bold">
+                {room.name ? (
+                  room.name
+                ) : (
+                  <span className="italic text-muted-foreground">
+                    Untitled Room
+                  </span>
+                )}
+              </h2>
+              {isPublicRoom ? (
+                <Globe className="w-5 h-5 text-muted-foreground" />
               ) : (
-                <span className="italic text-muted-foreground">
-                  Untitled Room
-                </span>
+                <Lock className="w-5 h-5 text-muted-foreground" />
               )}
-            </h1>
+            </div>
             {room.currentStory && (
               <p className="text-muted-foreground mt-2">{room.currentStory}</p>
             )}
@@ -327,9 +335,9 @@ function RoomPage() {
         )}
 
         {/* Main Content */}
-        <div className="mt-8 flex flex-col lg:grid lg:grid-cols-[1fr_300px] gap-8">
-          {/* Voting Area */}
-          <div className="space-y-6 order-1">
+        <div className="mt-8 flex flex-col lg:flex-row gap-8">
+          {/* Left Column - Voting Card and Round History (stacked on desktop) */}
+          <div className="flex-1 flex flex-col gap-6 order-1 lg:order-1">
             <VotingCard
               roomId={roomId as Id<"rooms">}
               currentStory={room.currentStory}
@@ -350,17 +358,19 @@ function RoomPage() {
               }
             />
 
-            {/* Round History Table */}
-            <RoundHistoryTable
-              roomId={roomId as Id<"rooms">}
-              isAdmin={isAdmin}
-              currentRoundId={room.currentRoundId}
-              pointScalePreset={room.pointScalePreset}
-              pointScale={pointScale}
-              demoSessionId={
-                isDemoRoom ? (demoSessionId ?? undefined) : undefined
-              }
-            />
+            {/* Round History Table - hidden on mobile (shown below participants via order-3) */}
+            <div className="hidden lg:block">
+              <RoundHistoryTable
+                roomId={roomId as Id<"rooms">}
+                isAdmin={isAdmin}
+                currentRoundId={room.currentRoundId}
+                pointScalePreset={room.pointScalePreset}
+                pointScale={pointScale}
+                demoSessionId={
+                  isDemoRoom ? (demoSessionId ?? undefined) : undefined
+                }
+              />
+            </div>
 
             {/* Admin Settings Panel - in left column on desktop */}
             {(isAuthenticated || isDemoRoomAdmin) && isAdmin && (
@@ -386,7 +396,7 @@ function RoomPage() {
           </div>
 
           {/* Participants Sidebar */}
-          <Card className="order-2">
+          <Card className="order-2 lg:order-2 lg:w-[360px] lg:flex-shrink-0">
             <CardContent className="pt-6">
               <ParticipantList
                 participants={participantsWithVotes}
@@ -421,9 +431,23 @@ function RoomPage() {
             </CardContent>
           </Card>
 
+          {/* Round History Table - below participants on mobile */}
+          <div className="order-3 lg:hidden">
+            <RoundHistoryTable
+              roomId={roomId as Id<"rooms">}
+              isAdmin={isAdmin}
+              currentRoundId={room.currentRoundId}
+              pointScalePreset={room.pointScalePreset}
+              pointScale={pointScale}
+              demoSessionId={
+                isDemoRoom ? (demoSessionId ?? undefined) : undefined
+              }
+            />
+          </div>
+
           {/* Admin Settings Panel - at the bottom on mobile */}
           {(isAuthenticated || isDemoRoomAdmin) && isAdmin && (
-            <div className="order-3 lg:hidden">
+            <div className="order-4 lg:hidden">
               <RoomSettings
                 roomId={roomId as Id<"rooms">}
                 currentRoomName={room.name || ""}

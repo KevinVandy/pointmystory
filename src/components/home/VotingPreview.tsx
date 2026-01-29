@@ -56,7 +56,7 @@ export function VotingPreview() {
             aria-label="Point Scale"
             className="w-[300px]"
           >
-            <SelectValue />
+            <SelectValue>{currentOption?.label || selectedPreset}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {PRESET_OPTIONS.map((option) => (
