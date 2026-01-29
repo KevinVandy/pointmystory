@@ -46,6 +46,7 @@ export function CreateRoomForm() {
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [timerDuration, setTimerDuration] = useState(180);
   const [autoStartTimer, setAutoStartTimer] = useState(false);
+  const [autoRevealVotes, setAutoRevealVotes] = useState(true);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<
     string | null
   >(null);
@@ -87,6 +88,7 @@ export function CreateRoomForm() {
         visibility,
         timerDurationSeconds: timerDuration,
         autoStartTimer,
+        autoRevealVotes,
         organizationId: selectedOrganizationId || undefined,
       });
       navigate({ to: "/room/$roomId", params: { roomId } });
@@ -108,7 +110,7 @@ export function CreateRoomForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Room Name */}
           <div className="space-y-2">
             <Label htmlFor="roomName">Room Name (Optional)</Label>
@@ -140,6 +142,24 @@ export function CreateRoomForm() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Auto-reveal Votes Checkbox */}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="autoRevealVotes"
+              checked={autoRevealVotes}
+              onCheckedChange={(checked) =>
+                setAutoRevealVotes(checked === true)
+              }
+              disabled={isCreating}
+            />
+            <Label
+              htmlFor="autoRevealVotes"
+              className="text-sm font-medium cursor-pointer"
+            >
+              Auto Reveal Votes When Everyone Has Voted
+            </Label>
           </div>
 
           {/* Timer Duration */}

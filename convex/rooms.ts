@@ -17,6 +17,7 @@ export const create = mutation({
     pointScale: v.optional(v.array(v.string())),
     timerDurationSeconds: v.optional(v.number()),
     autoStartTimer: v.optional(v.boolean()),
+    autoRevealVotes: v.optional(v.boolean()),
     organizationId: v.optional(v.string()), // Optional organization ID
   },
   handler: async (ctx, args) => {
@@ -46,6 +47,7 @@ export const create = mutation({
       pointScale: pointScale,
       timerDurationSeconds: args.timerDurationSeconds ?? DEFAULT_TIMER_DURATION,
       autoStartTimer: args.autoStartTimer ?? false,
+      autoRevealVotes: args.autoRevealVotes ?? true,
       status: "open",
       organizationId: organizationId,
     });
@@ -111,6 +113,7 @@ export const updateSettings = mutation({
     pointScale: v.optional(v.array(v.string())),
     timerDurationSeconds: v.optional(v.number()),
     autoStartTimer: v.optional(v.boolean()),
+    autoRevealVotes: v.optional(v.boolean()),
     demoSessionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -128,6 +131,7 @@ export const updateSettings = mutation({
       pointScale: string[];
       timerDurationSeconds: number;
       autoStartTimer: boolean;
+      autoRevealVotes: boolean;
     }> = {};
 
     if (args.name !== undefined) {
@@ -144,6 +148,10 @@ export const updateSettings = mutation({
 
     if (args.autoStartTimer !== undefined) {
       updates.autoStartTimer = args.autoStartTimer;
+    }
+
+    if (args.autoRevealVotes !== undefined) {
+      updates.autoRevealVotes = args.autoRevealVotes;
     }
 
     if (args.pointScalePreset !== undefined) {
@@ -257,6 +265,146 @@ export const reveal = mutation({
         });
       }
     }
+
+    // Stop the timer when votes are revealed
+    await ctx.db.patch(args.roomId, {
+      timerStartedAt: undefined,
+      timerEndsAt: undefined,
+    });
+  },
+});
+
+// Internal reveal mutation (no admin check) - used for auto-reveal
+export const internalReveal = internalMutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      return; // Room not found, nothing to do
+    }
+
+    // Check if room is closed
+    const roomStatus = room.status ?? "open";
+    if (roomStatus === "closed") {
+      return; // Room is closed, don't reveal
+    }
+
+    // Update the current round with reveal info and stats
+    if (room.currentRoundId) {
+      const round = await ctx.db.get(room.currentRoundId);
+      if (round && !round.isRevealed) {
+        // Get all votes for this round
+        const votes = await ctx.db
+          .query("votes")
+          .withIndex("by_round", (q) => q.eq("roundId", room.currentRoundId!))
+          .collect();
+
+        // Calculate stats
+        const stats = calculateVoteStats(votes);
+
+        // Calculate default final score by rounding average/median to nearest point scale value
+        const pointScale = getEffectivePointScale(room.pointScale, room.pointScalePreset);
+        const scoreToUse = stats.averageScore ?? stats.medianScore;
+        const defaultFinalScore = roundToNearestPointScale(
+          scoreToUse,
+          pointScale,
+          room.pointScalePreset
+        );
+
+        // Update round with reveal time, stats, story name, and default final score
+        await ctx.db.patch(room.currentRoundId, {
+          isRevealed: true,
+          revealedAt: Date.now(),
+          name: round.name || room.currentStory || undefined,
+          ...stats,
+          // Only set finalScore if it's not already set and we have a default value
+          ...(round.finalScore === undefined && defaultFinalScore !== null && {
+            finalScore: defaultFinalScore,
+          }),
+        });
+
+        // Stop the timer when votes are revealed
+        await ctx.db.patch(args.roomId, {
+          timerStartedAt: undefined,
+          timerEndsAt: undefined,
+        });
+      }
+    }
+  },
+});
+
+// Revote: Clear votes and reset round for revoting (admin only)
+export const revoteRound = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    demoSessionId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireRoomAdmin(ctx, args.roomId, args.demoSessionId);
+
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+
+    // Check if room is closed
+    const roomStatus = room.status ?? "open";
+    if (roomStatus === "closed") {
+      throw new Error("Cannot revote in a closed room");
+    }
+
+    // Ensure there's a current round
+    if (!room.currentRoundId) {
+      throw new Error("No active round in this room");
+    }
+
+    const currentRound = await ctx.db.get(room.currentRoundId);
+    if (!currentRound) {
+      throw new Error("Current round not found");
+    }
+
+    // Delete all votes for the current round
+    const votes = await ctx.db
+      .query("votes")
+      .withIndex("by_round", (q) => q.eq("roundId", room.currentRoundId!))
+      .collect();
+
+    for (const vote of votes) {
+      await ctx.db.delete(vote._id);
+    }
+
+    // Reset the round: clear reveal status and stats
+    await ctx.db.patch(room.currentRoundId, {
+      isRevealed: false,
+      revealedAt: undefined,
+      averageScore: undefined,
+      medianScore: undefined,
+      unsureCount: undefined,
+      finalScore: undefined,
+    });
+
+    // Check if auto-start timer is enabled
+    const autoStartTimer = room.autoStartTimer ?? false;
+    const timerDuration = room.timerDurationSeconds ?? DEFAULT_TIMER_DURATION;
+
+    let timerStartedAt: number | undefined = undefined;
+    let timerEndsAt: number | undefined = undefined;
+
+    if (autoStartTimer) {
+      const now = Date.now();
+      timerStartedAt = now;
+      timerEndsAt = now + timerDuration * 1000;
+    }
+
+    // Update room: reset timer (or start if auto-start enabled)
+    await ctx.db.patch(args.roomId, {
+      timerStartedAt,
+      timerEndsAt,
+    });
+
+    return room.currentRoundId;
   },
 });
 
@@ -477,6 +625,7 @@ export const createDemo = mutation({
       pointScalePreset: preset,
       pointScale: pointScale,
       timerDurationSeconds: DEFAULT_TIMER_DURATION,
+      autoRevealVotes: true,
       status: "open",
       isDemo: true,
       autoCloseAt: autoCloseAt,

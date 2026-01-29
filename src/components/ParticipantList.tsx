@@ -1,4 +1,4 @@
-import { Eye, TimerOff, Timer, Clock } from "lucide-react";
+import { Eye, TimerOff, Timer, Clock, RotateCcw } from "lucide-react";
 import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "./ui/button";
 import { NewRoundDialog } from "./NewRoundDialog";
@@ -34,6 +34,7 @@ interface ParticipantListProps {
   timerStartedAt?: number | null;
   onStopTimer?: () => void;
   onStartTimer?: () => void;
+  onRevote?: () => void;
   currentRoundId?: Id<"rounds"> | null;
   currentRoundAverageScore?: number | null;
   currentRoundMedianScore?: number | null;
@@ -59,6 +60,7 @@ export function ParticipantList({
   timerStartedAt,
   onStopTimer,
   onStartTimer,
+  onRevote,
   currentRoundId,
   currentRoundAverageScore,
   currentRoundMedianScore,
@@ -203,6 +205,20 @@ export function ParticipantList({
               isAdmin={isCurrentUserAdmin}
               demoSessionId={demoSessionId}
             />
+          )}
+          {/* Revote Button - shown when votes are revealed and user is admin */}
+          {isCurrentUserAdmin && onRevote && (
+            <div className="pt-4 border-t">
+              <Button
+                onClick={onRevote}
+                variant="outline"
+                className="w-full gap-2"
+                disabled={isClosed}
+              >
+                <RotateCcw className="w-4 h-4" />
+                Revote
+              </Button>
+            </div>
           )}
         </>
       )}

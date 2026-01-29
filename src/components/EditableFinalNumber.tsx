@@ -74,7 +74,7 @@ export function EditableFinalNumber({
   };
 
   return (
-    <div className="pt-4 border-t">
+    <div className="py-4 border-t">
       <div className="relative inline-block w-full group">
         <div
           className={cn(

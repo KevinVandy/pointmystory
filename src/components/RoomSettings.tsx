@@ -52,6 +52,7 @@ interface RoomSettingsProps {
   currentPointScale: string[];
   currentTimerDuration: number;
   currentAutoStartTimer?: boolean;
+  currentAutoRevealVotes?: boolean;
   isAdmin: boolean;
   demoSessionId?: string;
   isDemoRoom?: boolean;
@@ -66,6 +67,7 @@ export function RoomSettings({
   currentPointScale,
   currentTimerDuration,
   currentAutoStartTimer = false,
+  currentAutoRevealVotes = true,
   isAdmin,
   demoSessionId,
   isDemoRoom = false,
@@ -133,6 +135,9 @@ export function RoomSettings({
     return Math.round(duration / 15) * 15;
   });
   const [autoStartTimer, setAutoStartTimer] = useState(currentAutoStartTimer);
+  const [autoRevealVotes, setAutoRevealVotes] = useState(
+    currentAutoRevealVotes,
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [showPublicConfirm, setShowPublicConfirm] = useState(false);
 
@@ -321,6 +326,26 @@ export function RoomSettings({
     }
   };
 
+  const handleAutoRevealVotesChange = async (checked: boolean) => {
+    setAutoRevealVotes(checked);
+    setIsSaving(true);
+    try {
+      await updateSettings({
+        roomId,
+        autoRevealVotes: checked,
+        demoSessionId,
+      });
+      toast.success("Auto-reveal setting updated");
+    } catch (error) {
+      console.error("Failed to update auto-reveal setting:", error);
+      toast.error("Failed to update auto-reveal setting");
+      // Revert on error
+      setAutoRevealVotes(currentAutoRevealVotes ?? true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -431,6 +456,22 @@ export function RoomSettings({
                 </p>
               </div>
             )}
+
+            {/* Auto-reveal Votes Checkbox */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="autoRevealVotes"
+                checked={autoRevealVotes}
+                onCheckedChange={handleAutoRevealVotesChange}
+                disabled={isSaving}
+              />
+              <Label
+                htmlFor="autoRevealVotes"
+                className="text-sm font-medium cursor-pointer"
+              >
+                Auto Reveal Votes When Everyone Has Voted
+              </Label>
+            </div>
 
             {/* Timer Duration */}
             <div className="space-y-3">

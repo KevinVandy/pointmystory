@@ -99,10 +99,10 @@ export function VotingChoiceButton({
     () => {
       if (isDisabled) return;
 
-      // Get the emoji array for this tier, shuffle it, and take first 4
+      // Get the emoji array for this tier, shuffle it, and take first 3
       const emojiArray = getEmojiArrayForIndex(index, value);
       const shuffled = shuffleArray(emojiArray);
-      const selectedEmojis = shuffled.slice(0, 4).filter((emoji) => emoji); // Filter out empty strings
+      const selectedEmojis = shuffled.slice(0, 3).filter((emoji) => emoji); // Filter out empty strings
 
       const newEmojis = selectedEmojis.map((emoji, i) => ({
         id: Date.now() + i,

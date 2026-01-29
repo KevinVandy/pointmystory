@@ -16,6 +16,7 @@ export default defineSchema({
     timerStartedAt: v.optional(v.number()), // Timestamp when timer started (null = not running)
     timerEndsAt: v.optional(v.number()), // Timestamp when timer expires
     autoStartTimer: v.optional(v.boolean()), // Auto-start timer when new round starts (default: false)
+    autoRevealVotes: v.optional(v.boolean()), // Auto-reveal votes when everyone has voted (default: true)
     // Current active round
     currentRoundId: v.optional(v.id("rounds")), // Active round being voted on
     // Room status

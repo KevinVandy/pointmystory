@@ -1,7 +1,9 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, MutationCtx } from "./_generated/server";
 import { requireAuth, canViewRoomWithoutAuth, getEffectiveParticipantType } from "./permissions";
 import { getEffectivePointScale, isValidPointValue } from "./pointScales";
+import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // Cast or update a vote
 // REQUIRES AUTHENTICATION - this is the FIRST check
@@ -19,13 +21,13 @@ export const cast = mutation({
     if (!room) {
       throw new Error("Room not found");
     }
-    
+
     // Check if room is closed
     const roomStatus = room.status ?? "open";
     if (roomStatus === "closed") {
       throw new Error("Cannot vote in a closed room");
     }
-    
+
     // Ensure there's a current round
     if (!room.currentRoundId) {
       throw new Error("No active round in this room");
@@ -36,7 +38,7 @@ export const cast = mutation({
     if (!currentRound) {
       throw new Error("Current round not found");
     }
-    
+
     if (currentRound.isRevealed) {
       throw new Error("Cannot vote after votes have been revealed");
     }
@@ -80,6 +82,10 @@ export const cast = mutation({
         value: args.value,
         votedAt: Date.now(),
       });
+
+      // Check for auto-reveal after updating vote
+      await checkAndAutoReveal(ctx, args.roomId, room, room.currentRoundId!);
+
       return existingVote._id;
     }
 
@@ -92,9 +98,61 @@ export const cast = mutation({
       votedAt: Date.now(),
     });
 
+    // Check for auto-reveal after casting vote
+    await checkAndAutoReveal(ctx, args.roomId, room, room.currentRoundId!);
+
     return voteId;
   },
 });
+
+// Helper function to check if all voters have voted and auto-reveal if enabled
+async function checkAndAutoReveal(
+  ctx: MutationCtx,
+  roomId: Id<"rooms">,
+  room: { autoRevealVotes?: boolean | null },
+  roundId: Id<"rounds">
+) {
+  // Check if auto-reveal is enabled (default to true)
+  const autoRevealEnabled = room.autoRevealVotes ?? true;
+  if (!autoRevealEnabled) {
+    return;
+  }
+
+  // Get all participants who are voters (not observers)
+  const allParticipants = await ctx.db
+    .query("participants")
+    .withIndex("by_room", (q) => q.eq("roomId", roomId))
+    .collect();
+
+  // Filter to only voters
+  const voters = allParticipants.filter((p) => {
+    const participantType = p.participantType ?? "voter";
+    return participantType === "voter";
+  });
+
+  // If no voters, nothing to reveal
+  if (voters.length === 0) {
+    return;
+  }
+
+  // Get all votes for the current round
+  const votes = await ctx.db
+    .query("votes")
+    .withIndex("by_round", (q) => q.eq("roundId", roundId))
+    .collect();
+
+  // Check if all voters have voted
+  const votedParticipantIds = new Set(votes.map((v) => v.participantId));
+
+  const allVotersHaveVoted = voters.every((voter) => votedParticipantIds.has(voter._id));
+
+  if (allVotersHaveVoted) {
+    // Call internal reveal mutation (scheduled to run immediately after this mutation completes)
+    await ctx.scheduler.runAfter(0, internal.rooms.internalReveal, {
+      roomId,
+    });
+  }
+}
 
 // Get all votes for the current round in a room
 // Works for public rooms without auth (read-only)
@@ -138,27 +196,27 @@ export const getByRoom = query({
     const identity = await ctx.auth.getUserIdentity();
     const currentParticipant = identity
       ? await ctx.db
-          .query("participants")
-          .withIndex("by_room_and_user", (q) =>
-            q.eq("roomId", args.roomId).eq("clerkUserId", identity.subject)
-          )
-          .unique()
+        .query("participants")
+        .withIndex("by_room_and_user", (q) =>
+          q.eq("roomId", args.roomId).eq("clerkUserId", identity.subject)
+        )
+        .unique()
       : null;
 
     const processedVotes = !isRevealed
       ? votes.map((vote) => ({
-          ...vote,
-          // Only show the value to the person who cast the vote
-          value:
-            currentParticipant && vote.participantId === currentParticipant._id
-              ? vote.value
-              : null,
-          hasVoted: true,
-        }))
+        ...vote,
+        // Only show the value to the person who cast the vote
+        value:
+          currentParticipant && vote.participantId === currentParticipant._id
+            ? vote.value
+            : null,
+        hasVoted: true,
+      }))
       : votes.map((vote) => ({
-          ...vote,
-          hasVoted: true,
-        }));
+        ...vote,
+        hasVoted: true,
+      }));
 
     return { status: "ok" as const, votes: processedVotes };
   },

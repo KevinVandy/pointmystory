@@ -67,6 +67,7 @@ function RoomPage() {
   const revealVotes = useMutation(api.rooms.reveal);
   const startTimerMutation = useMutation(api.rooms.startTimer);
   const stopTimerMutation = useMutation(api.rooms.stopTimer);
+  const revoteRound = useMutation(api.rooms.revoteRound);
 
   // Extract room from result
   const room = roomResult?.status === "ok" ? roomResult.room : null;
@@ -225,6 +226,13 @@ function RoomPage() {
     });
   };
 
+  const handleRevote = () => {
+    revoteRound({
+      roomId: roomId as Id<"rooms">,
+      demoSessionId: isDemoRoom ? (demoSessionId ?? undefined) : undefined,
+    });
+  };
+
   // Unauthenticated user viewing public room (read-only)
   // Exception: demo room admins can perform admin actions
   const isReadOnlyViewer = !isAuthenticated && isPublicRoom && !isDemoRoomAdmin;
@@ -335,7 +343,7 @@ function RoomPage() {
               isReadOnlyViewer={isReadOnlyViewer}
               isObserver={isObserver}
               currentVote={currentVote}
-              pointScale={pointScale}
+              pointScale={pointScale ?? []}
               onVote={handleVote}
               demoSessionId={
                 isDemoRoom ? (demoSessionId ?? undefined) : undefined
@@ -362,9 +370,10 @@ function RoomPage() {
                   currentRoomName={room.name || ""}
                   currentVisibility={room.visibility ?? "private"}
                   currentPreset={room.pointScalePreset ?? "fibonacci"}
-                  currentPointScale={pointScale}
+                  currentPointScale={pointScale ?? []}
                   currentTimerDuration={room.timerDurationSeconds ?? 180}
                   currentAutoStartTimer={room.autoStartTimer ?? false}
+                  currentAutoRevealVotes={room.autoRevealVotes ?? true}
                   isAdmin={isAdmin}
                   demoSessionId={
                     isDemoRoom ? (demoSessionId ?? undefined) : undefined
@@ -403,6 +412,7 @@ function RoomPage() {
                 timerStartedAt={room.timerStartedAt}
                 onStartTimer={handleStartTimer}
                 onStopTimer={handleStopTimer}
+                onRevote={handleRevote}
                 currentRoundId={currentRound?._id}
                 currentRoundAverageScore={currentRound?.averageScore}
                 currentRoundMedianScore={currentRound?.medianScore}
@@ -419,8 +429,10 @@ function RoomPage() {
                 currentRoomName={room.name || ""}
                 currentVisibility={room.visibility ?? "private"}
                 currentPreset={room.pointScalePreset ?? "fibonacci"}
-                currentPointScale={pointScale}
+                currentPointScale={pointScale ?? []}
                 currentTimerDuration={room.timerDurationSeconds ?? 180}
+                currentAutoStartTimer={room.autoStartTimer ?? false}
+                currentAutoRevealVotes={room.autoRevealVotes ?? true}
                 isAdmin={isAdmin}
                 demoSessionId={
                   isDemoRoom ? (demoSessionId ?? undefined) : undefined
