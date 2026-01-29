@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -208,6 +209,49 @@ export function VotingCard({
 }: VotingCardProps) {
   const getAccessibleResources = useAction(api.jira.getAccessibleResources);
   const [jiraResources, setJiraResources] = useState<JiraResource[]>([]);
+  const [setStoryDialogOpen, setSetStoryDialogOpen] = useState(false);
+  const hasAttemptedAutoOpenRef = React.useRef(false);
+  const userClosedRef = React.useRef(false);
+
+  // Auto-open dialog for admins when there's no story set (only on initial page load)
+  useEffect(() => {
+    // Only attempt auto-open once per component mount (page load)
+    // This prevents reopening after state changes like reveals
+    if (hasAttemptedAutoOpenRef.current) {
+      return;
+    }
+
+    const shouldOpen =
+      isAdmin &&
+      !isClosed &&
+      !isRevealed &&
+      !currentStory &&
+      !currentRoundName &&
+      !currentTicketNumber;
+
+    if (shouldOpen && !userClosedRef.current) {
+      setSetStoryDialogOpen(true);
+    }
+
+    // Mark as attempted after checking conditions (whether we opened or not)
+    // This ensures we only try once per page load
+    hasAttemptedAutoOpenRef.current = true;
+  }, [
+    isAdmin,
+    isClosed,
+    isRevealed,
+    currentStory,
+    currentRoundName,
+    currentTicketNumber,
+  ]);
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setSetStoryDialogOpen(open);
+    if (!open) {
+      // User manually closed the dialog
+      userClosedRef.current = true;
+    }
+  };
 
   // Fetch Jira resources to get site URLs
   useEffect(() => {
@@ -308,6 +352,8 @@ export function VotingCard({
                   // Story will be updated via the mutation, no need for callback
                 }}
                 demoSessionId={demoSessionId}
+                open={setStoryDialogOpen}
+                onOpenChange={handleDialogOpenChange}
               />
             </div>
           )}

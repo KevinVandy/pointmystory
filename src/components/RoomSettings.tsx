@@ -39,10 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import {
-  POINT_SCALE_PRESETS,
-  PRESET_OPTIONS_WITH_CUSTOM,
-} from "@/lib/pointScales";
+import { PRESET_OPTIONS_WITH_CUSTOM } from "@/lib/pointScales";
 
 interface RoomSettingsProps {
   roomId: Id<"rooms">;
@@ -412,25 +409,6 @@ export function RoomSettings({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                {/* Current Scale Preview - Desktop Only */}
-                <div className="hidden md:flex flex-wrap gap-1 items-center pt-2">
-                  {(preset === "custom" && customScale
-                    ? customScale
-                        .split(",")
-                        .map((v) => v.trim())
-                        .filter(Boolean)
-                    : POINT_SCALE_PRESETS[
-                        preset as keyof typeof POINT_SCALE_PRESETS
-                      ] || currentPointScale
-                  ).map((value, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium"
-                    >
-                      {value}
-                    </span>
-                  ))}
                 </div>
               </div>
             </div>

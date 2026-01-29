@@ -123,7 +123,7 @@ export function ParticipantList({
         );
 
       // Check if we have >= 3 voters who voted
-      if (voterVotes.length >= 1) {
+      if (voterVotes.length >= 3) {
         // Check if all votes are the same
         const firstVote = voterVotes[0];
         const allSame = voterVotes.every((vote) => vote === firstVote);

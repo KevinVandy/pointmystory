@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import * as React from "react";
-import { useMutation, useAction } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import {
@@ -28,6 +28,8 @@ interface NewRoundDialogProps {
   trigger?: React.ReactElement;
   onStoryUpdated?: () => void;
   demoSessionId?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function NewRoundDialog({
@@ -38,8 +40,18 @@ export function NewRoundDialog({
   trigger,
   onStoryUpdated,
   demoSessionId,
+  open: controlledOpen,
+  onOpenChange,
 }: NewRoundDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  // Use controlled open if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = (value: boolean) => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(value);
+    }
+    onOpenChange?.(value);
+  };
   const [name, setName] = useState("");
   const [ticketNumber, setTicketNumber] = useState("");
   const [isLoading, setIsLoading] = useState(false);
