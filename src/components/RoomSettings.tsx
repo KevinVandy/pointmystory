@@ -18,7 +18,10 @@ import { Checkbox } from "./ui/checkbox";
 import { Slider } from "./ui/slider";
 import { Settings, Globe, Lock, Copy, Timer, Building2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
-import { useOrganization, useOrganizationList } from "@clerk/tanstack-react-start";
+import {
+  useOrganization,
+  useOrganizationList,
+} from "@clerk/tanstack-react-start";
 import { toast } from "sonner";
 import { Separator } from "./ui/separator";
 import {
@@ -37,24 +40,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-
-// Point scale presets - should match convex/pointScales.ts
-const POINT_SCALE_PRESETS = {
-  fibonacci: ["0.5", "1", "2", "3", "5", "8", "13", "21", "?"],
-  tshirt: ["XS", "S", "M", "L", "XL", "?"],
-  powers: ["0.5", "1", "2", "4", "8", "16", "32", "?"],
-  hybrid: ["0.5", "1", "2", "4", "6", "8", "12", "16", "24", "?"],
-  linear: ["0.5", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "?"],
-} as const;
-
-const PRESET_OPTIONS = [
-  { value: "fibonacci", label: "Fibonacci (0.5, 1, 2, 3, 5, 8, 13, 21, ?)" },
-  { value: "tshirt", label: "T-Shirt Sizes (XS, S, M, L, XL, ?)" },
-  { value: "powers", label: "Powers of 2 (0.5, 1, 2, 4, 8, 16, 32, ?)" },
-  { value: "linear", label: "Linear (0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ?)" },
-  { value: "hybrid", label: "Hybrid (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)" },
-  { value: "custom", label: "Custom" },
-];
+import {
+  POINT_SCALE_PRESETS,
+  PRESET_OPTIONS_WITH_CUSTOM,
+} from "@/lib/pointScales";
 
 interface RoomSettingsProps {
   roomId: Id<"rooms">;
@@ -85,7 +74,9 @@ export function RoomSettings({
   const { organization } = useOrganization();
   const { userMemberships, isLoaded: orgListLoaded } = useOrganizationList();
   const [organizationName, setOrganizationName] = useState<string | null>(null);
-  const [organizationImageUrl, setOrganizationImageUrl] = useState<string | null>(null);
+  const [organizationImageUrl, setOrganizationImageUrl] = useState<
+    string | null
+  >(null);
 
   // Look up organization name and image when data is available
   useEffect(() => {
@@ -105,8 +96,9 @@ export function RoomSettings({
     // Otherwise, look it up from the user's organization memberships
     if (orgListLoaded && userMemberships?.data) {
       const membership = userMemberships.data.find(
-        (m: { organization: { id: string; name: string; imageUrl?: string } }) => 
-          m.organization.id === organizationId
+        (m: {
+          organization: { id: string; name: string; imageUrl?: string };
+        }) => m.organization.id === organizationId,
       );
       if (membership) {
         setOrganizationName(membership.organization.name || null);
@@ -116,7 +108,14 @@ export function RoomSettings({
         setOrganizationImageUrl(null);
       }
     }
-  }, [organizationId, organization?.id, organization?.name, organization?.imageUrl, orgListLoaded, userMemberships?.data]);
+  }, [
+    organizationId,
+    organization?.id,
+    organization?.name,
+    organization?.imageUrl,
+    orgListLoaded,
+    userMemberships?.data,
+  ]);
 
   const [visibility, setVisibility] = useState(currentVisibility);
   const [preset, setPreset] = useState(currentPreset || "fibonacci");
@@ -375,7 +374,7 @@ export function RoomSettings({
                       <SelectValue placeholder="Select a point scale" />
                     </SelectTrigger>
                     <SelectContent>
-                      {PRESET_OPTIONS.map((option) => (
+                      {PRESET_OPTIONS_WITH_CUSTOM.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>
@@ -514,7 +513,10 @@ export function RoomSettings({
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
                   {organizationImageUrl ? (
                     <Avatar size="sm">
-                      <AvatarImage src={organizationImageUrl} alt={organizationName || "Organization"} />
+                      <AvatarImage
+                        src={organizationImageUrl}
+                        alt={organizationName || "Organization"}
+                      />
                       <AvatarFallback>
                         <Building2 className="size-4" />
                       </AvatarFallback>

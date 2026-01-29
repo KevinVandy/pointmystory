@@ -187,3 +187,25 @@ code {
   background-size: 200% 200%;
   animation: gradient-shift 8s ease infinite;
 }
+
+/* Emoji pop animation */
+@keyframes emoji-pop {
+  0% {
+    transform: translateY(0) translateX(-50%) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-20px)
+      translateX(calc(-50% + var(--emoji-x-offset, 0px) * 0.4)) scale(1.2);
+  }
+  100% {
+    transform: translateY(-120px)
+      translateX(calc(-50% + var(--emoji-x-offset, 0px) * 1.2)) scale(1);
+    opacity: 0;
+  }
+}
+
+.animate-emoji-pop {
+  animation: emoji-pop 2s ease-out forwards;
+}

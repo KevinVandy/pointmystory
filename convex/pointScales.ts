@@ -1,21 +1,21 @@
 // Point scale presets for story pointing
 
 export const POINT_SCALE_PRESETS = {
-  fibonacci: ["0.5", "1", "2", "3", "5", "8", "13", "21", "?"],
-  tshirt: ["XS", "S", "M", "L", "XL", "?"],
-  powers: ["0.5", "1", "2", "4", "8", "16", "32", "?"],
-  hybrid: ["0.5", "1", "2", "4", "6", "8", "12", "16", "24", "?"],
-  linear: ["0.5", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "?"],
+  fibonacci: ["0.5", "1", "2", "3", "5", "8", "13", "21", "34", "?"],
+  powers: ["0.5", "1", "2", "4", "8", "16", "32", "64", "128", "?"],
+  linear: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "?"],
+  hybrid: ["0.5", "1", "2", "3", "4", "6", "8", "12", "16", "24", "?"],
+  tshirt: ["XS", "S", "M", "L", "XL", "XXL", "?"],
 } as const;
 
 export type PointScalePreset = keyof typeof POINT_SCALE_PRESETS | "custom";
 
 export const PRESET_LABELS: Record<PointScalePreset, string> = {
-  fibonacci: "Fibonacci (0.5, 1, 2, 3, 5, 8, 13, 21, ?)",
-  tshirt: "T-Shirt Sizes (XS, S, M, L, XL, ?)",
-  powers: "Powers of 2 (0.5, 1, 2, 4, 8, 16, 32, ?)",
-  hybrid: "Hybrid (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)",
-  linear: "Linear (0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ?)",
+  fibonacci: `Fibonacci (${POINT_SCALE_PRESETS.fibonacci.join(", ")})`,
+  powers: `Powers of 2 (${POINT_SCALE_PRESETS.powers.join(", ")})`,
+  linear: `Linear (${POINT_SCALE_PRESETS.linear.join(", ")})`,
+  hybrid: `Hybrid (${POINT_SCALE_PRESETS.hybrid.join(", ")})`,
+  tshirt: `T-Shirt Sizes (${POINT_SCALE_PRESETS.tshirt.join(", ")})`,
   custom: "Custom",
 };
 

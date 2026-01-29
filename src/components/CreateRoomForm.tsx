@@ -20,8 +20,13 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useOrganization, useOrganizationList, OrganizationSwitcher } from "@clerk/tanstack-react-start";
+import {
+  useOrganization,
+  useOrganizationList,
+  OrganizationSwitcher,
+} from "@clerk/tanstack-react-start";
 import { Users, Globe, Lock, Timer, Building2 } from "lucide-react";
+import { PRESET_OPTIONS, DEFAULT_PRESET } from "@/lib/pointScales";
 
 const formatTimerDuration = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -29,20 +34,14 @@ const formatTimerDuration = (seconds: number) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
-const PRESET_OPTIONS = [
-  { value: "fibonacci", label: "Fibonacci (0.5, 1, 2, 3, 5, 8, 13, 21, ?)" },
-  { value: "tshirt", label: "T-Shirt Sizes (XS, S, M, L, XL, ?)" },
-  { value: "powers", label: "Powers of 2 (0.5, 1, 2, 4, 8, 16, 32, ?)" },
-  { value: "linear", label: "Linear (0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ?)" },
-  { value: "hybrid", label: "Hybrid (0.5, 1, 2, 4, 6, 8, 12, 16, 24, ?)" },
-];
-
 export function CreateRoomForm() {
   const [roomName, setRoomName] = useState("");
-  const [pointScalePreset, setPointScalePreset] = useState("fibonacci");
+  const [pointScalePreset, setPointScalePreset] = useState(DEFAULT_PRESET);
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [timerDuration, setTimerDuration] = useState(180);
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | null>(null);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<
+    string | null
+  >(null);
   const [isCreating, setIsCreating] = useState(false);
   const createRoom = useMutation(api.rooms.create);
   const navigate = useNavigate();
@@ -177,37 +176,48 @@ export function CreateRoomForm() {
               <OrganizationSwitcher
                 appearance={{
                   elements: {
-                    organizationSwitcherTrigger: "w-full justify-between px-3 py-2",
+                    organizationSwitcherTrigger:
+                      "w-full justify-between px-3 py-2",
                   },
                 }}
               />
-              {orgListLoaded && userMemberships && userMemberships.data && userMemberships.data.length > 0 && (
-                <Select
-                  value={selectedOrganizationId || "personal"}
-                  onValueChange={handleOrganizationChange}
-                  disabled={isCreating}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select organization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="personal">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        Personal Room
-                      </div>
-                    </SelectItem>
-                    {userMemberships.data.map((membership: { organization: { id: string; name: string } }) => (
-                      <SelectItem key={membership.organization.id} value={membership.organization.id}>
+              {orgListLoaded &&
+                userMemberships &&
+                userMemberships.data &&
+                userMemberships.data.length > 0 && (
+                  <Select
+                    value={selectedOrganizationId || "personal"}
+                    onValueChange={handleOrganizationChange}
+                    disabled={isCreating}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select organization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="personal">
                         <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4" />
-                          {membership.organization.name}
+                          <Users className="w-4 h-4" />
+                          Personal Room
                         </div>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+                      {userMemberships.data.map(
+                        (membership: {
+                          organization: { id: string; name: string };
+                        }) => (
+                          <SelectItem
+                            key={membership.organization.id}
+                            value={membership.organization.id}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-4 h-4" />
+                              {membership.organization.name}
+                            </div>
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
             </div>
             <p className="text-xs text-muted-foreground">
               {selectedOrganizationId
