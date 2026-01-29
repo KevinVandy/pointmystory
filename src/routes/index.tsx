@@ -24,7 +24,9 @@ import {
   Play,
   Eye,
   Settings,
+  Github,
   Plug2,
+  Lock,
 } from "lucide-react";
 import { RoomMembershipTable } from "@/components/RoomMembershipTable";
 import { useMutation } from "convex/react";
@@ -34,11 +36,118 @@ import { toast } from "sonner";
 import { setDemoSessionId } from "@/lib/demoSession";
 import { HomePageSkeleton } from "@/components/HomePageSkeleton";
 import { RejoinRoomAlert } from "@/components/RejoinRoomAlert";
+import {
+  Avatar,
+  AvatarGroup,
+  AvatarImage,
+  AvatarFallback,
+  AvatarBadge,
+} from "@/components/ui/avatar";
 
 export const Route = createFileRoute("/")({
   component: Home,
   pendingComponent: HomePageSkeleton,
 });
+
+function IntegrationsIcon() {
+  return (
+    <div className="flex items-center justify-center gap-2">
+      {/* Jira Icon - Blue circle with "J" */}
+      <div className="w-6 h-6 rounded bg-[#0052CC] flex items-center justify-center">
+        <span className="text-white text-xs font-bold">J</span>
+      </div>
+      {/* Linear Icon - Purple gradient circle */}
+      <div className="w-6 h-6 rounded-full bg-linear-to-br from-[#5E6AD2] to-[#9B59B6] flex items-center justify-center">
+        <div className="w-3 h-3 rounded-full bg-white/30"></div>
+      </div>
+      {/* GitHub Icon */}
+      <Github className="w-6 h-6" />
+    </div>
+  );
+}
+
+function CollaborationAvatars() {
+  // Demo avatars with status dots using local stock avatars
+  const avatars = [
+    {
+      name: "Alex",
+      initial: "A",
+      online: true,
+      image: "/stock-avatars/avatar1.png",
+    },
+    {
+      name: "Sam",
+      initial: "S",
+      online: true,
+      image: "/stock-avatars/avatar2.png",
+    },
+    {
+      name: "Jordan",
+      initial: "J",
+      online: false,
+      image: "/stock-avatars/avatar3.png",
+    },
+    {
+      name: "Taylor",
+      initial: "T",
+      online: true,
+      image: "/stock-avatars/avatar4.png",
+    },
+    {
+      name: "Morgan",
+      initial: "M",
+      online: true,
+      image: "/stock-avatars/avatar5.png",
+    },
+  ];
+
+  return (
+    <AvatarGroup className="justify-center">
+      {avatars.map((avatar, index) => (
+        <Avatar key={index} size="lg">
+          <AvatarImage src={avatar.image} alt={avatar.name} />
+          <AvatarFallback>{avatar.initial}</AvatarFallback>
+          <AvatarBadge
+            className={
+              avatar.online
+                ? "bg-green-500 border-green-500"
+                : "bg-gray-400 border-gray-400"
+            }
+          />
+        </Avatar>
+      ))}
+    </AvatarGroup>
+  );
+}
+
+function VisibilityToggle() {
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
+
+  return (
+    <div className="flex gap-2 justify-center">
+      <Button
+        type="button"
+        variant={visibility === "private" ? "default" : "outline"}
+        size="sm"
+        onClick={() => setVisibility("private")}
+        className="flex-1 max-w-[100px]"
+      >
+        <Lock className="w-4 h-4 mr-1" />
+        Private
+      </Button>
+      <Button
+        type="button"
+        variant={visibility === "public" ? "default" : "outline"}
+        size="sm"
+        onClick={() => setVisibility("public")}
+        className="flex-1 max-w-[100px]"
+      >
+        <Globe className="w-4 h-4 mr-1" />
+        Public
+      </Button>
+    </div>
+  );
+}
 
 function Home() {
   return (
@@ -72,16 +181,19 @@ function Home() {
               icon={<Users className="w-8 h-8" />}
               title="Real-time Collaboration"
               description="See when teammates join and vote in real-time with live updates. Everyone stays in sync with instant notifications and live participant status."
+              footer={<CollaborationAvatars />}
             />
             <FeaturedCard
               icon={<Globe className="w-8 h-8" />}
               title="Public & Private Rooms"
               description="Create private rooms for your team or public rooms for broader collaboration. Control access and manage permissions with ease."
+              footer={<VisibilityToggle />}
             />
             <FeaturedCard
               icon={<Plug2 className="w-8 h-8" />}
               title="Integrations"
               description="Connect with Jira, Linear, GitHub, and more. Fetch tickets directly, link stories, and sync your workflow seamlessly."
+              footer={<IntegrationsIcon />}
             />
           </div>
 
@@ -188,20 +300,27 @@ function FeaturedCard({
   icon,
   title,
   description,
+  footer,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
+  footer?: React.ReactNode;
 }) {
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 text-primary">
+    <Card className="h-full flex flex-col">
+      <CardHeader className="text-center">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 text-primary mx-auto">
           {icon}
         </div>
         <CardTitle className="text-xl mb-2">{title}</CardTitle>
         <CardDescription className="text-base">{description}</CardDescription>
       </CardHeader>
+      {footer && (
+        <CardContent className="mt-auto pt-0 pb-6">
+          <div className="text-center">{footer}</div>
+        </CardContent>
+      )}
     </Card>
   );
 }
