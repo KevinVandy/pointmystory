@@ -97,7 +97,13 @@ export function RoomControls({
       <div className="flex items-center justify-between flex-wrap gap-4">
         {/* Room name - left */}
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold">{roomName}</h1>
+          <h1 className="text-2xl font-bold">
+            {roomName ? (
+              roomName
+            ) : (
+              <span className="italic text-muted-foreground">Untitled Room</span>
+            )}
+          </h1>
         </div>
 
         {/* Participant type toggle - center */}
@@ -158,7 +164,7 @@ export function RoomControls({
                     <AlertDialogHeader>
                       <AlertDialogTitle>Close Room</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to close "{roomName}"? Once
+                        Are you sure you want to close "{roomName || "Untitled Room"}"? Once
                         closed, participants will not be able to vote or start
                         new rounds, but they can still view the room. You can
                         reopen it at any time.

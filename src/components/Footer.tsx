@@ -11,7 +11,7 @@ const socialLinkClass =
 
 export default function Footer() {
   return (
-    <footer className="border-t bg-muted/30 py-4">
+    <footer className="border-t bg-muted py-4">
       <div className="container mx-auto px-4 flex flex-col items-center gap-4">
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-muted-foreground">
           <span>© {new Date().getFullYear()} Point My Story</span>

@@ -11,11 +11,12 @@ const DEFAULT_TIMER_DURATION = 180;
 // Create a new room
 export const create = mutation({
   args: {
-    name: v.string(),
+    name: v.optional(v.string()),
     visibility: v.optional(v.union(v.literal("public"), v.literal("private"))),
     pointScalePreset: v.optional(v.string()),
     pointScale: v.optional(v.array(v.string())),
     timerDurationSeconds: v.optional(v.number()),
+    autoStartTimer: v.optional(v.boolean()),
     organizationId: v.optional(v.string()), // Optional organization ID
   },
   handler: async (ctx, args) => {
@@ -29,7 +30,7 @@ export const create = mutation({
     // Determine the point scale to use
     const preset = args.pointScalePreset ?? DEFAULT_PRESET;
     let pointScale: string[];
-    
+
     if (preset === "custom" && args.pointScale && args.pointScale.length > 0) {
       pointScale = args.pointScale;
     } else {
@@ -37,13 +38,14 @@ export const create = mutation({
     }
 
     const roomId = await ctx.db.insert("rooms", {
-      name: args.name,
+      name: args.name?.trim() || "",
       hostId: identity.subject,
       currentStory: undefined,
       visibility: args.visibility ?? "private",
       pointScalePreset: preset,
       pointScale: pointScale,
       timerDurationSeconds: args.timerDurationSeconds ?? DEFAULT_TIMER_DURATION,
+      autoStartTimer: args.autoStartTimer ?? false,
       status: "open",
       organizationId: organizationId,
     });
@@ -103,6 +105,7 @@ export const get = query({
 export const updateSettings = mutation({
   args: {
     roomId: v.id("rooms"),
+    name: v.optional(v.string()),
     visibility: v.optional(v.union(v.literal("public"), v.literal("private"))),
     pointScalePreset: v.optional(v.string()),
     pointScale: v.optional(v.array(v.string())),
@@ -119,12 +122,17 @@ export const updateSettings = mutation({
     }
 
     const updates: Partial<{
+      name: string;
       visibility: "public" | "private";
       pointScalePreset: string;
       pointScale: string[];
       timerDurationSeconds: number;
       autoStartTimer: boolean;
     }> = {};
+
+    if (args.name !== undefined) {
+      updates.name = args.name.trim() || "";
+    }
 
     if (args.visibility !== undefined) {
       updates.visibility = args.visibility;
@@ -140,7 +148,7 @@ export const updateSettings = mutation({
 
     if (args.pointScalePreset !== undefined) {
       updates.pointScalePreset = args.pointScalePreset;
-      
+
       // Update the point scale based on the preset
       if (args.pointScalePreset === "custom" && args.pointScale && args.pointScale.length > 0) {
         updates.pointScale = args.pointScale;
@@ -288,10 +296,10 @@ export const startNewRound = mutation({
     // Check if auto-start timer is enabled
     const autoStartTimer = room.autoStartTimer ?? false;
     const timerDuration = room.timerDurationSeconds ?? DEFAULT_TIMER_DURATION;
-    
+
     let timerStartedAt: number | undefined = undefined;
     let timerEndsAt: number | undefined = undefined;
-    
+
     if (autoStartTimer) {
       const now = Date.now();
       timerStartedAt = now;
@@ -452,7 +460,7 @@ export const createDemo = mutation({
     // Generate a unique demo session ID
     // Using timestamp + random number for uniqueness
     const demoSessionId = `demo_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-    
+
     // Calculate auto-close time (5 minutes from now)
     const autoCloseAt = Date.now() + 5 * 60 * 1000; // 5 minutes in milliseconds
 
@@ -538,13 +546,13 @@ export const listByUser = query({
         if (!room) {
           return null;
         }
-        
+
         // Get all participants for this room (for avatars)
         const roomParticipants = await ctx.db
           .query("participants")
           .withIndex("by_room", (q) => q.eq("roomId", participant.roomId))
           .collect();
-        
+
         return {
           ...room,
           participantRole: participant.role ?? "team",

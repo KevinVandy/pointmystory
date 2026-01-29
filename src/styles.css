@@ -209,3 +209,76 @@ code {
 .animate-emoji-pop {
   animation: emoji-pop 2s ease-out forwards;
 }
+
+/* Ensure Clerk components respect dark mode text colors with lighter greys for icons */
+.dark {
+  /* Use lighter greys for better icon visibility in dark mode */
+  --clerk-text-color: oklch(
+    0.92 0 0
+  ); /* Lighter grey for main text and icons */
+  --clerk-text-secondary-color: oklch(
+    0.85 0 0
+  ); /* Even lighter grey for secondary text and icons */
+  --clerk-background-color: oklch(
+    0.25 0 0
+  ); /* Lighter grey background for Clerk components */
+  --clerk-card-background-color: oklch(
+    0.28 0 0
+  ); /* Slightly lighter for cards/inputs */
+}
+
+.dark [data-clerk-element] {
+  --clerk-color-text: var(--clerk-text-color);
+  --clerk-color-foreground: var(--clerk-text-color);
+  --clerk-color-text-secondary: var(--clerk-text-secondary-color);
+  --clerk-color-input-text: var(--clerk-text-color);
+  --clerk-color-input-foreground: var(--clerk-text-color);
+  --clerk-color-background: var(--clerk-background-color);
+  --clerk-color-input-background: var(--clerk-card-background-color);
+}
+
+/* Apply lighter background to Clerk components */
+.dark [data-clerk-element] {
+  background-color: var(--clerk-background-color) !important;
+}
+
+.dark [data-clerk-element] [class*="card"],
+.dark [data-clerk-element] [class*="Card"],
+.dark [data-clerk-element] [class*="modal"],
+.dark [data-clerk-element] [class*="Modal"] {
+  background-color: var(--clerk-card-background-color) !important;
+}
+
+.dark [data-clerk-element] input,
+.dark [data-clerk-element] textarea,
+.dark [data-clerk-element] select {
+  background-color: var(--clerk-card-background-color) !important;
+}
+
+/* Force text color on common Clerk text elements in dark mode */
+.dark [data-clerk-element] p:not([class*="text-"]),
+.dark [data-clerk-element] span:not([class*="text-"]),
+.dark [data-clerk-element] div:not([class*="text-"]) {
+  color: var(--clerk-text-color);
+}
+
+.dark [data-clerk-element] input[type="text"],
+.dark [data-clerk-element] input[type="email"],
+.dark [data-clerk-element] input[type="password"],
+.dark [data-clerk-element] textarea {
+  color: var(--clerk-text-color);
+}
+
+/* Ensure icons are visible with lighter grey */
+.dark [data-clerk-element] svg,
+.dark [data-clerk-element] [class*="icon"],
+.dark [data-clerk-element] [class*="Icon"] {
+  color: var(--clerk-text-color);
+  fill: var(--clerk-text-color);
+}
+
+.dark [data-clerk-element] button svg,
+.dark [data-clerk-element] a svg {
+  color: var(--clerk-text-color);
+  fill: var(--clerk-text-color);
+}

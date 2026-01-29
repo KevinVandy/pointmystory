@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
@@ -26,7 +27,11 @@ import {
   OrganizationSwitcher,
 } from "@clerk/tanstack-react-start";
 import { Users, Globe, Lock, Timer, Building2 } from "lucide-react";
-import { PRESET_OPTIONS, DEFAULT_PRESET } from "@/lib/pointScales";
+import {
+  PRESET_OPTIONS,
+  DEFAULT_PRESET,
+  PointScalePreset,
+} from "@/lib/pointScales";
 
 const formatTimerDuration = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -36,9 +41,11 @@ const formatTimerDuration = (seconds: number) => {
 
 export function CreateRoomForm() {
   const [roomName, setRoomName] = useState("");
-  const [pointScalePreset, setPointScalePreset] = useState(DEFAULT_PRESET);
+  const [pointScalePreset, setPointScalePreset] =
+    useState<PointScalePreset>(DEFAULT_PRESET);
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [timerDuration, setTimerDuration] = useState(180);
+  const [autoStartTimer, setAutoStartTimer] = useState(false);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<
     string | null
   >(null);
@@ -58,7 +65,7 @@ export function CreateRoomForm() {
     }
   }, [organization]);
 
-  const handlePresetChange = (newPreset: string | null) => {
+  const handlePresetChange = (newPreset: PointScalePreset | null) => {
     if (newPreset !== null) {
       setPointScalePreset(newPreset);
     }
@@ -71,15 +78,15 @@ export function CreateRoomForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roomName.trim()) return;
 
     setIsCreating(true);
     try {
       const roomId = await createRoom({
-        name: roomName.trim(),
+        name: roomName.trim() || undefined,
         pointScalePreset,
         visibility,
         timerDurationSeconds: timerDuration,
+        autoStartTimer,
         organizationId: selectedOrganizationId || undefined,
       });
       navigate({ to: "/room/$roomId", params: { roomId } });
@@ -104,7 +111,7 @@ export function CreateRoomForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Room Name */}
           <div className="space-y-2">
-            <Label htmlFor="roomName">Room Name</Label>
+            <Label htmlFor="roomName">Room Name (Optional)</Label>
             <Input
               id="roomName"
               value={roomName}
@@ -137,6 +144,23 @@ export function CreateRoomForm() {
 
           {/* Timer Duration */}
           <div className="space-y-3">
+            {/* Auto-start Timer Checkbox */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="autoStartTimer"
+                checked={autoStartTimer}
+                onCheckedChange={(checked) =>
+                  setAutoStartTimer(checked === true)
+                }
+                disabled={isCreating}
+              />
+              <Label
+                htmlFor="autoStartTimer"
+                className="text-sm font-medium cursor-pointer"
+              >
+                Auto-start timer when starting a new round
+              </Label>
+            </div>
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium flex items-center gap-1">
                 <Timer className="w-4 h-4" />
@@ -264,11 +288,7 @@ export function CreateRoomForm() {
             </p>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={!roomName.trim() || isCreating}
-          >
+          <Button type="submit" className="w-full" disabled={isCreating}>
             {isCreating ? "Creating..." : "Create Room"}
           </Button>
         </form>

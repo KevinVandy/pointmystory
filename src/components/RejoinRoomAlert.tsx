@@ -12,7 +12,6 @@ import { X, LogIn, Info } from "lucide-react";
 import { useState } from "react";
 import { useUser } from "@clerk/tanstack-react-start";
 import { toast } from "sonner";
-import type { Id } from "../../convex/_generated/dataModel";
 
 export function RejoinRoomAlert() {
   const { user, isLoaded } = useUser();
@@ -75,7 +74,7 @@ export function RejoinRoomAlert() {
   };
 
   return (
-    <div className="sticky top-16 z-40 w-full">
+    <div className="sticky top-20 z-40 w-full">
       <div className="container mx-auto px-4 pt-4">
         <Alert variant="warning" className="mb-4">
           <Info className="w-4 h-4" />

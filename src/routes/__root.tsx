@@ -132,24 +132,90 @@ function RootComponent() {
   const frontendApi = (import.meta as any).env.VITE_CLERK_FRONTEND_API;
 
   return (
-    <ClerkProvider
-      publishableKey={publishableKey}
-      {...(frontendApi && { frontendApi })}
-    >
-      <ConvexProviderWithClerk client={context.convexClient} useAuth={useAuth}>
-        <ThemeWrapper>
-          <RootDocument>
-            <Outlet />
-          </RootDocument>
-        </ThemeWrapper>
-      </ConvexProviderWithClerk>
-    </ClerkProvider>
+    <ThemeProvider>
+      <ClerkProviderWrapper
+        publishableKey={publishableKey}
+        frontendApi={frontendApi}
+        convexClient={context.convexClient}
+      >
+        <RootDocument>
+          <Outlet />
+        </RootDocument>
+      </ClerkProviderWrapper>
+    </ThemeProvider>
   );
 }
 
-// Wrapper for ThemeProvider (no longer needs sign-in state)
-function ThemeWrapper({ children }: { children: React.ReactNode }) {
-  return <ThemeProvider>{children}</ThemeProvider>;
+// Wrapper that configures ClerkProvider with theme
+function ClerkProviderWrapper({
+  publishableKey,
+  frontendApi,
+  convexClient,
+  children,
+}: {
+  publishableKey: string;
+  frontendApi?: string;
+  convexClient: ConvexReactClient;
+  children: React.ReactNode;
+}) {
+  return (
+    <ClerkProvider
+      publishableKey={publishableKey}
+      {...(frontendApi && { frontendApi })}
+      appearance={{
+        variables: {
+          // Use CSS variables that automatically respect dark mode via .dark class
+          // Use lighter grey backgrounds in dark mode for better visibility
+          colorBackground: "var(--clerk-background-color, var(--background))",
+          colorInputBackground:
+            "var(--clerk-card-background-color, var(--card))",
+          // Use lighter greys in dark mode for better icon visibility
+          colorText: "var(--clerk-text-color, var(--foreground))",
+          colorForeground: "var(--clerk-text-color, var(--foreground))",
+          colorTextSecondary:
+            "var(--clerk-text-secondary-color, var(--muted-foreground))",
+          colorPrimary: "var(--primary)",
+          colorInputText: "var(--clerk-text-color, var(--foreground))",
+          colorInputForeground: "var(--clerk-text-color, var(--foreground))",
+          colorTextOnPrimaryBackground: "var(--primary-foreground)",
+          colorShimmer: "var(--muted)",
+          colorBorder: "var(--border)",
+          colorNeutral:
+            "var(--clerk-text-secondary-color, var(--muted-foreground))",
+          colorDanger: "var(--destructive)",
+          colorSuccess: "var(--primary)",
+          borderRadius: "var(--radius)",
+        },
+        elements: {
+          // Ensure text colors are applied to common elements with lighter greys for icons
+          formButtonPrimary: "text-[var(--primary-foreground)]",
+          formFieldLabel: "text-[var(--clerk-text-color, var(--foreground))]",
+          formFieldInput: "text-[var(--clerk-text-color, var(--foreground))]",
+          card: "text-[var(--clerk-text-color, var(--foreground))]",
+          headerTitle: "text-[var(--clerk-text-color, var(--foreground))]",
+          headerSubtitle:
+            "text-[var(--clerk-text-secondary-color, var(--muted-foreground))]",
+          socialButtonsBlockButton:
+            "text-[var(--clerk-text-color, var(--foreground))]",
+          formButtonReset: "text-[var(--clerk-text-color, var(--foreground))]",
+          identityPreviewText:
+            "text-[var(--clerk-text-color, var(--foreground))]",
+          identityPreviewEditButton:
+            "text-[var(--clerk-text-color, var(--foreground))]",
+          // Icon-specific styling
+          "formButtonPrimary svg": "text-[var(--primary-foreground)]",
+          "formButtonReset svg":
+            "text-[var(--clerk-text-color, var(--foreground))]",
+          "socialButtonsBlockButton svg":
+            "text-[var(--clerk-text-color, var(--foreground))]",
+        },
+      }}
+    >
+      <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
+        {children}
+      </ConvexProviderWithClerk>
+    </ClerkProvider>
+  );
 }
 
 function RootShell({ children }: { children: React.ReactNode }) {
@@ -168,9 +234,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="pb-64 min-h-[calc(100vh-80px)]">
+      <main className="flex-1">
         <Suspense
           fallback={
             <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
@@ -194,6 +260,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           },
         ]}
       />
-    </>
+    </div>
   );
 }

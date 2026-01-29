@@ -29,9 +29,9 @@ function HomePageContent() {
 
 function Home() {
   return (
-    <div className="min-h-[calc(100vh-80px)] relative overflow-hidden">
+    <>
       {/* Animated gradient background - uses fixed positioning to cover full viewport */}
-      <div className="fixed inset-0 -z-10 pointer-events-none">
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
         {/* Base gradient */}
         <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-background to-primary/10" />
 
@@ -52,21 +52,23 @@ function Home() {
         />
       </div>
 
-      <RejoinRoomAlert />
-      <div className="container mx-auto px-4 py-12 relative">
-        {/* Signed In Users - Just show functional content */}
-        <SignedIn>
-          <RoomMembershipTable />
-          <div className="mt-8">
-            <CreateRoomForm />
-          </div>
-        </SignedIn>
+      <div className="min-h-[calc(100vh-80px)] relative pb-100">
+        <RejoinRoomAlert />
+        <div className="container mx-auto px-4 py-12 relative">
+          {/* Signed In Users - Just show functional content */}
+          <SignedIn>
+            <div className="flex flex-col gap-16">
+              <RoomMembershipTable />
+              <CreateRoomForm />
+            </div>
+          </SignedIn>
 
-        {/* Signed Out Users - Show marketing content */}
-        <SignedOut>
-          <HomePageContent />
-        </SignedOut>
+          {/* Signed Out Users - Show marketing content */}
+          <SignedOut>
+            <HomePageContent />
+          </SignedOut>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

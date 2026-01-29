@@ -4,7 +4,6 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useEffect, useMemo, useState } from "react";
 import { useUser, SignInButton } from "@clerk/tanstack-react-start";
-import { DEFAULT_POINT_VALUES } from "@/components/VotingChoiceButton";
 import { ParticipantList } from "@/components/ParticipantList";
 import { RoomControls } from "@/components/RoomControls";
 import { RoomSettings } from "@/components/RoomSettings";
@@ -106,11 +105,8 @@ function RoomPage() {
     }
   }, [isDemoRoom, room?.autoCloseAt]);
 
-  // Point scale from room or default
-  const pointScale =
-    room?.pointScale && room.pointScale.length > 0
-      ? room.pointScale
-      : [...DEFAULT_POINT_VALUES];
+  // Point scale from room
+  const pointScale = room?.pointScale;
 
   // Auto-join room when user is authenticated and not already a participant
   // (only for authenticated users viewing any room)
@@ -235,7 +231,7 @@ function RoomPage() {
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 pt-6 pb-100">
         {/* Demo room indicator */}
         {isDemoRoom && (
           <Alert className="mb-4">
@@ -298,7 +294,15 @@ function RoomPage() {
         {/* Read-only header for unauthenticated users */}
         {isReadOnlyViewer && (
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold">{room.name}</h1>
+            <h1 className="text-2xl font-bold">
+              {room.name ? (
+                room.name
+              ) : (
+                <span className="italic text-muted-foreground">
+                  Untitled Room
+                </span>
+              )}
+            </h1>
             {room.currentStory && (
               <p className="text-muted-foreground mt-2">{room.currentStory}</p>
             )}
@@ -355,6 +359,7 @@ function RoomPage() {
               <div className="hidden lg:block">
                 <RoomSettings
                   roomId={roomId as Id<"rooms">}
+                  currentRoomName={room.name || ""}
                   currentVisibility={room.visibility ?? "private"}
                   currentPreset={room.pointScalePreset ?? "fibonacci"}
                   currentPointScale={pointScale}
@@ -411,6 +416,7 @@ function RoomPage() {
             <div className="order-3 lg:hidden">
               <RoomSettings
                 roomId={roomId as Id<"rooms">}
+                currentRoomName={room.name || ""}
                 currentVisibility={room.visibility ?? "private"}
                 currentPreset={room.pointScalePreset ?? "fibonacci"}
                 currentPointScale={pointScale}

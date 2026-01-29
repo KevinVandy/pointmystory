@@ -13,7 +13,6 @@ import {
 } from "./ui/select";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Switch } from "./ui/switch";
 import { Checkbox } from "./ui/checkbox";
 import { Slider } from "./ui/slider";
 import { Settings, Globe, Lock, Copy, Timer, Building2 } from "lucide-react";
@@ -47,6 +46,7 @@ import {
 
 interface RoomSettingsProps {
   roomId: Id<"rooms">;
+  currentRoomName: string;
   currentVisibility: "public" | "private";
   currentPreset: string;
   currentPointScale: string[];
@@ -60,6 +60,7 @@ interface RoomSettingsProps {
 
 export function RoomSettings({
   roomId,
+  currentRoomName,
   currentVisibility,
   currentPreset,
   currentPointScale,
@@ -117,6 +118,7 @@ export function RoomSettings({
     userMemberships?.data,
   ]);
 
+  const [roomName, setRoomName] = useState(currentRoomName || "");
   const [visibility, setVisibility] = useState(currentVisibility);
   const [preset, setPreset] = useState(currentPreset || "fibonacci");
   const [customScale, setCustomScale] = useState(
@@ -184,8 +186,9 @@ export function RoomSettings({
     }
   };
 
-  const handleVisibilityChange = async (checked: boolean) => {
-    const newVisibility = checked ? "public" : "private";
+  const handleVisibilityChange = async (
+    newVisibility: "public" | "private",
+  ) => {
     // If changing to public, show confirmation dialog
     if (newVisibility === "public" && visibility === "private") {
       setShowPublicConfirm(true);
@@ -230,8 +233,44 @@ export function RoomSettings({
     toast.success("Link copied to clipboard");
   };
 
+  // Sync roomName when prop changes
+  useEffect(() => {
+    setRoomName(currentRoomName || "");
+  }, [currentRoomName]);
+
   // Debounce timer for saving
   const saveTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const roomNameSaveTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleRoomNameChange = (newName: string) => {
+    // Update local state immediately for responsive UI
+    setRoomName(newName);
+
+    // Clear existing timeout
+    if (roomNameSaveTimerRef.current) {
+      clearTimeout(roomNameSaveTimerRef.current);
+    }
+
+    // Debounce the save operation
+    roomNameSaveTimerRef.current = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        await updateSettings({
+          roomId,
+          name: newName.trim() || undefined,
+          demoSessionId,
+        });
+        toast.success("Room name updated");
+      } catch (error) {
+        console.error("Failed to update room name:", error);
+        toast.error("Failed to update room name");
+        // Revert on error
+        setRoomName(currentRoomName || "");
+      } finally {
+        setIsSaving(false);
+      }
+    }, 500);
+  };
 
   const handleTimerDurationChange = (newDuration: number) => {
     // Update local state immediately for responsive UI
@@ -282,11 +321,14 @@ export function RoomSettings({
     }
   };
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
+      }
+      if (roomNameSaveTimerRef.current) {
+        clearTimeout(roomNameSaveTimerRef.current);
       }
     };
   }, []);
@@ -307,69 +349,29 @@ export function RoomSettings({
           </div>
         </AccordionTrigger>
         <AccordionContent>
-          <div className="space-y-4">
-            {/* Timer Duration */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium flex items-center gap-1">
-                  <Timer className="size-4" />
-                  Default Timer Duration
-                </Label>
-                <span className="text-sm text-muted-foreground">
-                  {formatTimerDuration(timerDuration)}
-                </span>
-              </div>
-              <Slider
-                min={15}
-                max={600}
-                step={15}
-                value={[timerDuration]}
-                onValueChange={(newValue) => {
-                  // BaseUI slider passes the value directly as a number
-                  const value =
-                    typeof newValue === "number"
-                      ? newValue
-                      : Array.isArray(newValue)
-                        ? newValue[0]
-                        : timerDuration;
-                  handleTimerDurationChange(value);
-                }}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{formatTimerDuration(15)}</span>
-                <span>{formatTimerDuration(600)}</span>
-              </div>
-            </div>
-
-            {/* Auto-Start Timer Toggle */}
+          <div className="space-y-6 py-4">
+            {/* Room Name */}
             <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  checked={autoStartTimer}
-                  onCheckedChange={handleAutoStartTimerChange}
-                  disabled={isSaving}
-                  id="auto-start-timer"
-                />
-                <Label
-                  htmlFor="auto-start-timer"
-                  className="text-sm font-medium flex items-center gap-2 cursor-pointer"
-                >
-                  <Timer className="size-4" />
-                  Auto-Start Timer
-                </Label>
-              </div>
-              <p className="text-xs text-muted-foreground ml-7">
-                Automatically start the timer when a new round begins
-              </p>
+              <Label htmlFor="roomName">Room Name</Label>
+              <Input
+                id="roomName"
+                value={roomName}
+                onChange={(e) => handleRoomNameChange(e.target.value)}
+                placeholder="e.g., Sprint 42 Planning"
+                disabled={isSaving}
+              />
             </div>
 
             {/* Point Scale Preset */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Point Scale</Label>
+              <Label>Point Scale</Label>
               <div className="flex items-start gap-3">
                 <div className="flex-1">
-                  <Select value={preset} onValueChange={handlePresetChange}>
+                  <Select
+                    value={preset}
+                    onValueChange={handlePresetChange}
+                    disabled={isSaving}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a point scale" />
                     </SelectTrigger>
@@ -382,8 +384,8 @@ export function RoomSettings({
                     </SelectContent>
                   </Select>
                 </div>
-                {/* Current Scale Preview */}
-                <div className="flex flex-wrap gap-1 items-center pt-2">
+                {/* Current Scale Preview - Desktop Only */}
+                <div className="hidden md:flex flex-wrap gap-1 items-center pt-2">
                   {(preset === "custom" && customScale
                     ? customScale
                         .split(",")
@@ -414,6 +416,7 @@ export function RoomSettings({
                     onChange={(e) => setCustomScale(e.target.value)}
                     placeholder="1, 2, 3, 5, 8, ?"
                     className="flex-1"
+                    disabled={isSaving}
                   />
                   <Button
                     size="sm"
@@ -429,24 +432,81 @@ export function RoomSettings({
               </div>
             )}
 
-            <Separator />
-
-            {/* Visibility Toggle */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  {visibility === "public" ? (
-                    <Globe className="size-4" />
-                  ) : (
-                    <Lock className="size-4" />
-                  )}
-                  Room Visibility
-                </Label>
-                <Switch
-                  checked={visibility === "public"}
-                  onCheckedChange={handleVisibilityChange}
-                  disabled={isSaving || isDemoRoom}
+            {/* Timer Duration */}
+            <div className="space-y-3">
+              {/* Auto-start Timer Checkbox */}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="autoStartTimer"
+                  checked={autoStartTimer}
+                  onCheckedChange={handleAutoStartTimerChange}
+                  disabled={isSaving}
                 />
+                <Label
+                  htmlFor="autoStartTimer"
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Auto-start timer when starting a new round
+                </Label>
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-1">
+                  <Timer className="w-4 h-4" />
+                  Default Timer Duration
+                </Label>
+                <span className="text-sm text-muted-foreground">
+                  {formatTimerDuration(timerDuration)}
+                </span>
+              </div>
+              <Slider
+                min={15}
+                max={600}
+                step={15}
+                value={[timerDuration]}
+                onValueChange={(newValue) => {
+                  const value =
+                    typeof newValue === "number"
+                      ? newValue
+                      : Array.isArray(newValue)
+                        ? newValue[0]
+                        : timerDuration;
+                  handleTimerDurationChange(value);
+                }}
+                disabled={isSaving}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{formatTimerDuration(15)}</span>
+                <span>{formatTimerDuration(600)}</span>
+              </div>
+            </div>
+
+            {/* Room Visibility */}
+            <div className="space-y-2">
+              <Label>Room Visibility</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={visibility === "private" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleVisibilityChange("private")}
+                  disabled={isSaving || isDemoRoom}
+                  className="flex-1"
+                >
+                  <Lock className="w-4 h-4 mr-1" />
+                  Private
+                </Button>
+                <Button
+                  type="button"
+                  variant={visibility === "public" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleVisibilityChange("public")}
+                  disabled={isSaving || isDemoRoom}
+                  className="flex-1"
+                >
+                  <Globe className="w-4 h-4 mr-1" />
+                  Public
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground">
                 {isDemoRoom
@@ -483,6 +543,8 @@ export function RoomSettings({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            <Separator />
 
             {/* Share Link */}
             <div className="space-y-2">

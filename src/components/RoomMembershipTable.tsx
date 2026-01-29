@@ -10,13 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogIn, LogOut, Calendar, Building2, Users } from "lucide-react";
 import { useUser, useOrganizationList } from "@clerk/tanstack-react-start";
 import { toast } from "sonner";
@@ -45,9 +39,11 @@ export function RoomMembershipTable() {
   // Create a map of organization IDs to names
   const orgMap = new Map<string, string>();
   if (orgListLoaded && userMemberships && userMemberships.data) {
-    userMemberships.data.forEach((membership: { organization: { id: string; name: string } }) => {
-      orgMap.set(membership.organization.id, membership.organization.name);
-    });
+    userMemberships.data.forEach(
+      (membership: { organization: { id: string; name: string } }) => {
+        orgMap.set(membership.organization.id, membership.organization.name);
+      },
+    );
   }
 
   // Sort rooms: open rooms first, then closed rooms (both sorted by joinedAt descending)
@@ -104,10 +100,6 @@ export function RoomMembershipTable() {
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle>Your Rooms</CardTitle>
-        <CardDescription>
-          Rooms you can rejoin. Closed rooms are shown below open rooms. Admins
-          cannot leave rooms but can close them.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
@@ -142,12 +134,22 @@ export function RoomMembershipTable() {
 
               return (
                 <TableRow key={room._id}>
-                  <TableCell className="font-medium">{room.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {room.name ? (
+                      room.name
+                    ) : (
+                      <span className="italic text-muted-foreground">
+                        Untitled Room
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {organizationName ? (
                       <div className="flex items-center gap-1.5 text-sm">
                         <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span className="text-muted-foreground">{organizationName}</span>
+                        <span className="text-muted-foreground">
+                          {organizationName}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 text-sm">
@@ -215,7 +217,9 @@ export function RoomMembershipTable() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleLeave(room._id, room.name)}
+                          onClick={() =>
+                            handleLeave(room._id, room.name || "Untitled Room")
+                          }
                         >
                           <LogOut className="w-4 h-4 mr-2" />
                           Leave
