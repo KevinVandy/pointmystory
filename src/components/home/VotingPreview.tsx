@@ -54,7 +54,7 @@ export function VotingPreview() {
           <SelectTrigger
             id="point-scale-select"
             aria-label="Point Scale"
-            className="w-[300px]"
+            className="w-[320px]"
           >
             <SelectValue>{currentOption?.label || selectedPreset}</SelectValue>
           </SelectTrigger>
