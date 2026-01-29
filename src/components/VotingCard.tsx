@@ -214,10 +214,17 @@ export function VotingCard({
   const userClosedRef = React.useRef(false);
 
   // Auto-open dialog for admins when there's no story set (only on initial page load)
+  // Skip auto-open in demo mode
   useEffect(() => {
     // Only attempt auto-open once per component mount (page load)
     // This prevents reopening after state changes like reveals
     if (hasAttemptedAutoOpenRef.current) {
+      return;
+    }
+
+    // Don't auto-open in demo mode
+    if (demoSessionId) {
+      hasAttemptedAutoOpenRef.current = true;
       return;
     }
 
@@ -243,6 +250,7 @@ export function VotingCard({
     currentStory,
     currentRoundName,
     currentTicketNumber,
+    demoSessionId,
   ]);
 
   const handleDialogOpenChange = (open: boolean) => {
