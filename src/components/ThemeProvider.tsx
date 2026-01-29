@@ -31,40 +31,27 @@ function getStoredTheme(): Theme {
 
 interface ThemeProviderProps {
   children: React.ReactNode;
-  isSignedIn?: boolean;
 }
 
-export function ThemeProvider({
-  children,
-  isSignedIn = false,
-}: ThemeProviderProps) {
+export function ThemeProvider({ children }: ThemeProviderProps) {
   // Always start with light theme for SSR consistency
   const [theme, setThemeState] = useState<Theme>("light");
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
   const [mounted, setMounted] = useState(false);
 
-  // Dark mode is only enabled for signed-in users
-  const isEnabled = isSignedIn;
+  // Dark mode is enabled for all users
+  const isEnabled = true;
 
-  // Initialize theme from localStorage on mount (only if signed in)
+  // Initialize theme from localStorage on mount
   useEffect(() => {
     setMounted(true);
-    if (isEnabled) {
-      const stored = getStoredTheme();
-      setThemeState(stored);
-    }
-  }, [isEnabled]);
+    const stored = getStoredTheme();
+    setThemeState(stored);
+  }, []);
 
   // Update resolved theme and apply to document
   useEffect(() => {
     if (!mounted) return;
-
-    // Non-signed-in users always get light mode
-    if (!isEnabled) {
-      setResolvedTheme("light");
-      document.documentElement.classList.remove("dark");
-      return;
-    }
 
     const resolved = theme === "system" ? getSystemTheme() : theme;
     setResolvedTheme(resolved);
@@ -76,11 +63,11 @@ export function ThemeProvider({
     } else {
       root.classList.remove("dark");
     }
-  }, [theme, mounted, isEnabled]);
+  }, [theme, mounted]);
 
-  // Listen for system theme changes (only if signed in and using system theme)
+  // Listen for system theme changes (only if using system theme)
   useEffect(() => {
-    if (!mounted || !isEnabled || theme !== "system") return;
+    if (!mounted || theme !== "system") return;
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e: MediaQueryListEvent) => {
@@ -95,10 +82,9 @@ export function ThemeProvider({
 
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [theme, mounted, isEnabled]);
+  }, [theme, mounted]);
 
   const setTheme = (newTheme: Theme) => {
-    if (!isEnabled) return; // Ignore if not signed in
     setThemeState(newTheme);
     if (typeof window !== "undefined") {
       localStorage.setItem(THEME_STORAGE_KEY, newTheme);

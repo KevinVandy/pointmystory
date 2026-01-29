@@ -147,10 +147,9 @@ function RootComponent() {
   );
 }
 
-// Wrapper to get Clerk user state and pass to ThemeProvider
+// Wrapper for ThemeProvider (no longer needs sign-in state)
 function ThemeWrapper({ children }: { children: React.ReactNode }) {
-  const { isSignedIn } = useUser();
-  return <ThemeProvider isSignedIn={!!isSignedIn}>{children}</ThemeProvider>;
+  return <ThemeProvider>{children}</ThemeProvider>;
 }
 
 function RootShell({ children }: { children: React.ReactNode }) {
