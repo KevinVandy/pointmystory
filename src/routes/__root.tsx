@@ -223,6 +223,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          defer
+          src="https://assets.onedollarstats.com/stonks.js"
+        ></script>
       </head>
       <body>
         {children}
